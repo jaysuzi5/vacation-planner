@@ -252,6 +252,96 @@ body {
   }
 }
 
+/* Mobile font scaling */
+@media (max-width: 767px) {
+  body {
+    font-size: 0.9rem;
+  }
+
+  h1, .h1 { font-size: 1.6rem; }
+  h2, .h2 { font-size: 1.4rem; }
+  h3, .h3 { font-size: 1.2rem; }
+  h4, .h4 { font-size: 1.05rem; }
+  h5, .h5 { font-size: 0.95rem; }
+
+  .table { font-size: 0.85rem; }
+  .card-header { font-size: 0.9rem; }
+  .btn { font-size: 0.85rem; }
+}
+
+/* Mobile: give the expanded hamburger collapse a solid background */
+@media (max-width: 991.98px) {
+  .site-navbar .navbar-collapse {
+    background-color: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    padding: 0.5rem 0 0.75rem;
+    margin-left: -12px;
+    margin-right: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  [data-bs-theme="dark"] .site-navbar .navbar-collapse {
+    background-color: #1e293b;
+    border-top-color: #334155;
+  }
+
+  .navbar .dropdown-menu {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
+  }
+
+  [data-bs-theme="dark"] .navbar .dropdown-menu {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  @page {
+    margin: 0.5cm;
+  }
+
+  .site-navbar,
+  nav.navbar,
+  .site-footer,
+  footer,
+  nav[aria-label="breadcrumb"],
+  .breadcrumb,
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10pt !important;
+  }
+
+  h1, .h1, .h2 { font-size: 14pt !important; }
+  h4, .h4 { font-size: 11pt !important; }
+  h5, .h5 { font-size: 10pt !important; }
+  .table { font-size: 9pt !important; }
+
+  .card {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .day-card {
+    border-left: 3px solid #333 !important;
+  }
+
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}
+
 /* Dark mode */
 [data-bs-theme="dark"] {
   --color-bg: #0f172a;

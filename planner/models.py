@@ -103,9 +103,9 @@ class Vacation(models.Model):
             ('Meals', self.meals_budget, totals['meals'], 'bi-cup-hot'),
             ('Excursions', self.excursions_budget, totals['excursions'], 'bi-map'),
             ('Gas', self.gas_budget, totals['gas'], 'bi-fuel-pump'),
-            ('Cruise', self.cruise_budget, totals['cruise'], 'bi-ship'),
+            ('Cruise', self.cruise_budget, totals['cruise'], 'bi-compass'),
             ('Car Rental', self.car_rental_budget, totals['car_rental'], 'bi-car-front'),
-            ('Miscellaneous', self.misc_budget, totals['misc'], 'bi-three-dots'),
+            ('Misc.', self.misc_budget, totals['misc'], 'bi-bag'),
         ]
         return [
             {

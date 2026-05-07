@@ -59,8 +59,8 @@ Credentials and secrets are **not** stored here — see k8s SealedSecrets and lo
 - [x] Create `vacation_planner` database in k8s PostgreSQL (192.168.86.201:30004) — user `jcurtis`, password in SealedSecret
 - [x] Install dependencies: `uv sync`
 - [x] Run Django migrations — runs automatically via init container on every deployment
-- [ ] Create superuser: `kubectl exec -n vacation-planner -it <pod> -- uv run python manage.py createsuperuser`
-- [ ] Verify database tables in pgAdmin
+- [x] Create superuser: `kubectl exec -n vacation-planner -it <pod> -- uv run python manage.py createsuperuser`
+- [x] Verify database tables in pgAdmin
 
 ## Phase 5: Kubernetes Secrets ✅
 
@@ -91,8 +91,8 @@ Credentials and secrets are **not** stored here — see k8s SealedSecrets and lo
 - [x] Google Cloud Console OAuth 2.0 Client ID created
   - Authorized redirect URIs include `https://vacations.jaycurtis.org/accounts/google/login/callback/`
 - [x] `google_client_id` and `google_client_secret` sealed into `k8s/secrets.yaml`
-- [ ] Django admin → Social Applications → Add Google provider with Client ID + Secret, assign production site
-- [ ] Test Google login; verify user isolation
+- [x] Django admin → Social Applications → Add Google provider with Client ID + Secret, assign production site
+- [x] Test Google login; verify user isolation
 
 ## Phase 9: Database Backups ✅
 
@@ -105,7 +105,7 @@ Credentials and secrets are **not** stored here — see k8s SealedSecrets and lo
 - [x] PVC `vacation-planner-backup` — Bound (5Gi, nfs-client)
 - [x] All 4 CronJobs created
 - [x] Added `aws_access_key_id` + `aws_secret_access_key` to sealed secret (shared with unscripted-living, same `jay-curtis-backup` S3 bucket)
-- [ ] Test local backup: `kubectl create job --from=cronjob/vacation-planner-backup-local test-backup -n vacation-planner`
+- [x] Test local backup: `kubectl create job --from=cronjob/vacation-planner-backup-local test-backup -n vacation-planner`
 
 ---
 
@@ -132,4 +132,4 @@ Credentials and secrets are **not** stored here — see k8s SealedSecrets and lo
 - [ ] Search across vacations — by destination, trip name, or expense description
 - [ ] Duplicate vacation — copy an existing trip as a new planning template
 - [ ] Mobile-optimized expense entry — quick-add expense from vacation detail without full form page
-- [ ] Dark mode toggle — matching unscripted-living implementation
+- [x] Dark mode toggle — matching unscripted-living implementation
