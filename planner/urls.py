@@ -20,4 +20,7 @@ urlpatterns = [
     path('days/<int:day_pk>/expenses/add/', views.ExpenseCreateView.as_view(), name='expense_create'),
     path('expenses/<int:pk>/edit/', views.ExpenseEditView.as_view(), name='expense_edit'),
     path('expenses/<int:pk>/delete/', views.ExpenseDeleteView.as_view(), name='expense_delete'),
+
+    # Offline sync API
+    path('api/expenses/', views.ExpenseCreateApiView.as_view(), name='api_expense_create'),
 ]

@@ -186,3 +186,31 @@
 
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+// Background-cache every trip detail page linked from the dashboard.
+// Runs 2 s after load to avoid interfering with page render.
+if (navigator.onLine && 'caches' in window) {
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      var seen = new Set();
+      var links = document.querySelectorAll('a[href^="/vacations/"]');
+      links.forEach(function (a) {
+        var path = a.getAttribute('href');
+        if (path && !path.includes('/edit') && !path.includes('/delete') && !seen.has(path)) {
+          seen.add(path);
+          fetch(path, { credentials: 'include' })
+            .then(function (res) {
+              if (res.ok) {
+                caches.open('vp-shell-v1').then(function (cache) { cache.put(path, res); });
+              }
+            })
+            .catch(function () {});
+        }
+      });
+    }, 2000);
+  });
+}
+</script>
+{% endblock %}
