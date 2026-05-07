@@ -32,7 +32,6 @@
           <div class="col-md-4">
             <label class="form-label fw-medium">Status</label>
             {{ form.status }}
-            {% if form.status.errors %}<div class="text-danger small mt-1">{{ form.status.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
             <label class="form-label fw-medium">Location <span class="text-danger">*</span></label>
@@ -42,12 +41,15 @@
           <div class="col-md-6">
             <label class="form-label fw-medium">Start Date</label>
             {{ form.start_date }}
-            {% if form.start_date.errors %}<div class="text-danger small mt-1">{{ form.start_date.errors }}</div>{% endif %}
           </div>
           <div class="col-md-6">
             <label class="form-label fw-medium">End Date</label>
             {{ form.end_date }}
-            {% if form.end_date.errors %}<div class="text-danger small mt-1">{{ form.end_date.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-medium">Rating <span class="text-muted small">(1–10)</span></label>
+            {{ form.rating }}
+            {% if form.rating.errors %}<div class="text-danger small mt-1">{{ form.rating.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
             <label class="form-label fw-medium">Trip Notes</label>
@@ -57,9 +59,9 @@
       </div>
     </div>
 
-    <!-- Budget vs Actual -->
+    <!-- Budget -->
     <div class="card mb-4">
-      <div class="card-header"><h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Budget &amp; Actual</h5></div>
+      <div class="card-header"><h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Budget</h5></div>
       <div class="card-body">
         <div class="table-responsive">
           <table class="table align-middle">
@@ -67,58 +69,45 @@
               <tr>
                 <th>Category</th>
                 <th>Budget ($)</th>
-                <th>Actual ($)</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td><i class="bi bi-airplane me-2 text-muted"></i>Airfare</td>
                 <td>{{ form.airfare_budget }}</td>
-                <td>{{ form.airfare_actual }}</td>
               </tr>
               <tr>
                 <td><i class="bi bi-house me-2 text-muted"></i>Lodging</td>
                 <td>{{ form.lodging_budget }}</td>
-                <td>{{ form.lodging_actual }}</td>
               </tr>
               <tr>
                 <td><i class="bi bi-cup-hot me-2 text-muted"></i>Meals</td>
                 <td>{{ form.meals_budget }}</td>
-                <td>{{ form.meals_actual }}</td>
               </tr>
               <tr>
                 <td><i class="bi bi-map me-2 text-muted"></i>Excursions</td>
                 <td>{{ form.excursions_budget }}</td>
-                <td>{{ form.excursions_actual }}</td>
               </tr>
               <tr>
                 <td><i class="bi bi-fuel-pump me-2 text-muted"></i>Gas</td>
                 <td>{{ form.gas_budget }}</td>
-                <td>{{ form.gas_actual }}</td>
               </tr>
               <tr>
                 <td><i class="bi bi-ship me-2 text-muted"></i>Cruise</td>
                 <td>{{ form.cruise_budget }}</td>
-                <td>{{ form.cruise_actual }}</td>
               </tr>
               <tr>
                 <td><i class="bi bi-car-front me-2 text-muted"></i>Car Rental</td>
                 <td>{{ form.car_rental_budget }}</td>
-                <td>{{ form.car_rental_actual }}</td>
               </tr>
               <tr>
                 <td><i class="bi bi-three-dots me-2 text-muted"></i>Miscellaneous</td>
                 <td>{{ form.misc_budget }}</td>
-                <td>{{ form.misc_actual }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-        {% for field in form %}
-          {% if field.errors and field.name in 'airfare_budget,lodging_budget,meals_budget,excursions_budget,gas_budget,cruise_budget,car_rental_budget,misc_budget,airfare_actual,lodging_actual,meals_actual,excursions_actual,gas_actual,cruise_actual,car_rental_actual,misc_actual' %}
-          <div class="text-danger small">{{ field.label }}: {{ field.errors }}</div>
-          {% endif %}
-        {% endfor %}
+        <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>Actuals are computed from logged daily expenses.</p>
       </div>
     </div>
 
@@ -135,32 +124,4 @@
 
   </form>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-// Auto-calculate total budget and actual as user types
-document.addEventListener('DOMContentLoaded', function() {
-  const budgetFields = ['airfare_budget','lodging_budget','meals_budget','excursions_budget','gas_budget','cruise_budget','car_rental_budget','misc_budget'];
-  const actualFields = ['airfare_actual','lodging_actual','meals_actual','excursions_actual','gas_actual','cruise_actual','car_rental_actual','misc_actual'];
-
-  function sumFields(names) {
-    return names.reduce((acc, name) => {
-      const el = document.getElementById('id_' + name);
-      return acc + (parseFloat(el?.value) || 0);
-    }, 0);
-  }
-
-  function updateTotals() {
-    const tBudget = sumFields(budgetFields);
-    const tActual = sumFields(actualFields);
-    // Could display these somewhere if desired
-  }
-
-  [...budgetFields, ...actualFields].forEach(name => {
-    const el = document.getElementById('id_' + name);
-    if (el) el.addEventListener('input', updateTotals);
-  });
-});
-</script>
 {% endblock %}

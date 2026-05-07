@@ -1,6 +1,8 @@
 from decimal import Decimal
+from functools import cached_property
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import Sum
 from django.urls import reverse
 
 
@@ -21,6 +23,7 @@ class Vacation(models.Model):
     end_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_REVIEW)
     notes = models.TextField(blank=True)
+    rating = models.PositiveSmallIntegerField(null=True, blank=True)
 
     # Budget
     airfare_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
@@ -28,19 +31,19 @@ class Vacation(models.Model):
     meals_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     excursions_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     gas_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    misc_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     cruise_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     car_rental_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    misc_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
-    # Actual
+    # Actual (legacy columns — actuals now computed from logged Expense records)
     airfare_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     lodging_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     meals_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     excursions_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     gas_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    misc_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     cruise_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     car_rental_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    misc_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -54,6 +57,16 @@ class Vacation(models.Model):
     def get_absolute_url(self):
         return reverse('vacation_detail', kwargs={'pk': self.pk})
 
+    @cached_property
+    def expense_totals(self):
+        """Single query: expense amounts grouped by category for this vacation."""
+        totals = {cat: Decimal('0.00') for cat, _ in Expense.CATEGORY_CHOICES}
+        qs = Expense.objects.filter(day__vacation=self).values('category').annotate(total=Sum('amount'))
+        for row in qs:
+            if row['category'] in totals:
+                totals[row['category']] = row['total']
+        return totals
+
     @property
     def total_budget(self):
         return (self.airfare_budget + self.lodging_budget + self.meals_budget +
@@ -62,9 +75,7 @@ class Vacation(models.Model):
 
     @property
     def total_actual(self):
-        return (self.airfare_actual + self.lodging_actual + self.meals_actual +
-                self.excursions_actual + self.gas_actual + self.misc_actual +
-                self.cruise_actual + self.car_rental_actual)
+        return sum(self.expense_totals.values())
 
     @property
     def variance(self):
@@ -85,15 +96,16 @@ class Vacation(models.Model):
         return None
 
     def budget_rows(self):
+        totals = self.expense_totals
         categories = [
-            ('Airfare', self.airfare_budget, self.airfare_actual, 'bi-airplane'),
-            ('Lodging', self.lodging_budget, self.lodging_actual, 'bi-house'),
-            ('Meals', self.meals_budget, self.meals_actual, 'bi-cup-hot'),
-            ('Excursions', self.excursions_budget, self.excursions_actual, 'bi-map'),
-            ('Gas', self.gas_budget, self.gas_actual, 'bi-fuel-pump'),
-            ('Cruise', self.cruise_budget, self.cruise_actual, 'bi-ship'),
-            ('Car Rental', self.car_rental_budget, self.car_rental_actual, 'bi-car-front'),
-            ('Miscellaneous', self.misc_budget, self.misc_actual, 'bi-three-dots'),
+            ('Airfare', self.airfare_budget, totals['airfare'], 'bi-airplane'),
+            ('Lodging', self.lodging_budget, totals['lodging'], 'bi-house'),
+            ('Meals', self.meals_budget, totals['meals'], 'bi-cup-hot'),
+            ('Excursions', self.excursions_budget, totals['excursions'], 'bi-map'),
+            ('Gas', self.gas_budget, totals['gas'], 'bi-fuel-pump'),
+            ('Cruise', self.cruise_budget, totals['cruise'], 'bi-ship'),
+            ('Car Rental', self.car_rental_budget, totals['car_rental'], 'bi-car-front'),
+            ('Miscellaneous', self.misc_budget, totals['misc'], 'bi-three-dots'),
         ]
         return [
             {

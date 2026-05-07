@@ -1,5 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.db.models import F
 from django.urls import reverse_lazy
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -28,16 +29,23 @@ class DashboardView(LoginRequiredMixin, ListView):
     context_object_name = 'vacations'
 
     def get_queryset(self):
-        qs = Vacation.objects.filter(user=self.request.user)
-        status = self.request.GET.get('status')
-        if status:
-            qs = qs.filter(status=status)
-        return qs
+        return Vacation.objects.filter(user=self.request.user)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['status_choices'] = Vacation.STATUS_CHOICES
-        ctx['active_status'] = self.request.GET.get('status', '')
+        user = self.request.user
+        ctx['booked_vacations'] = (
+            Vacation.objects.filter(user=user, status=Vacation.STATUS_BOOKED)
+            .order_by('start_date')
+        )
+        ctx['review_vacations'] = (
+            Vacation.objects.filter(user=user, status=Vacation.STATUS_REVIEW)
+            .order_by(F('rating').desc(nulls_last=True), 'name')
+        )
+        ctx['taken_vacations'] = (
+            Vacation.objects.filter(user=user, status=Vacation.STATUS_TAKEN)
+            .order_by('-start_date')
+        )
         return ctx
 
 

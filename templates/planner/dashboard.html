@@ -5,30 +5,18 @@
 <div class="container py-4">
 
   <div class="d-flex align-items-center justify-content-between mb-4">
-    <div>
-      <h1 class="h3 mb-1">My Trips</h1>
-      <p class="text-muted mb-0">{{ vacations|length }} trip{{ vacations|length|pluralize }} found</p>
-    </div>
+    <h1 class="h3 mb-0">My Trips</h1>
     <a href="{% url 'vacation_create' %}" class="btn btn-primary">
       <i class="bi bi-plus-lg me-1"></i>New Trip
     </a>
   </div>
 
-  <!-- Status filter -->
-  <div class="mb-4 d-flex flex-wrap gap-2">
-    <a href="{% url 'dashboard' %}" class="btn btn-sm {% if not active_status %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
-      All
-    </a>
-    {% for value, label in status_choices %}
-    <a href="?status={{ value }}" class="btn btn-sm {% if active_status == value %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
-      {{ label }}
-    </a>
-    {% endfor %}
-  </div>
+  <!-- ── Booked ──────────────────────────────────────────────────────────── -->
+  <h4 class="mb-3"><span class="badge bg-primary me-2">Booked</span>Upcoming Trips</h4>
 
-  {% if vacations %}
-  <div class="row g-4">
-    {% for vacation in vacations %}
+  {% if booked_vacations %}
+  <div class="row g-4 mb-5">
+    {% for vacation in booked_vacations %}
     <div class="col-md-6 col-lg-4">
       <div class="card vacation-card h-100">
         <div class="card-body">
@@ -38,33 +26,23 @@
                 {{ vacation.name }}
               </a>
             </h5>
-            <span class="badge {{ vacation.status_badge_class }} ms-2 flex-shrink-0">
-              {{ vacation.get_status_display }}
-            </span>
+            <span class="badge bg-primary ms-2 flex-shrink-0">Booked</span>
           </div>
-
-          <p class="text-muted mb-2">
-            <i class="bi bi-geo-alt me-1"></i>{{ vacation.location }}
-          </p>
-
+          <p class="text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>{{ vacation.location }}</p>
           {% if vacation.start_date %}
           <p class="text-muted small mb-3">
-            <i class="bi bi-calendar3 me-1"></i>
-            {{ vacation.start_date|date:"M j, Y" }}
+            <i class="bi bi-calendar3 me-1"></i>{{ vacation.start_date|date:"M j, Y" }}
             {% if vacation.end_date %} &ndash; {{ vacation.end_date|date:"M j, Y" }}{% endif %}
-            {% if vacation.duration_days %}
-              <span class="ms-1">({{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }})</span>
-            {% endif %}
+            {% if vacation.duration_days %}({{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }}){% endif %}
           </p>
           {% endif %}
-
           <div class="budget-mini">
             <div class="d-flex justify-content-between small">
               <span class="text-muted">Budget</span>
               <strong>${{ vacation.total_budget|floatformat:2 }}</strong>
             </div>
             <div class="d-flex justify-content-between small">
-              <span class="text-muted">Actual</span>
+              <span class="text-muted">Spent</span>
               <strong class="{% if vacation.total_actual > vacation.total_budget %}text-danger{% else %}text-success{% endif %}">
                 ${{ vacation.total_actual|floatformat:2 }}
               </strong>
@@ -83,8 +61,119 @@
     </div>
     {% endfor %}
   </div>
-
   {% else %}
+  <p class="text-muted mb-5 fst-italic">No booked trips.</p>
+  {% endif %}
+
+  <!-- ── In Review ──────────────────────────────────────────────────────── -->
+  <h4 class="mb-3"><span class="badge bg-warning text-dark me-2">In Review</span>Planning</h4>
+
+  {% if review_vacations %}
+  <div class="card mb-5">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Trip</th>
+            <th>Location</th>
+            <th>Dates</th>
+            <th class="text-center">Rating</th>
+            <th class="text-end">Budget</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vacation in review_vacations %}
+          <tr>
+            <td>
+              <a href="{{ vacation.get_absolute_url }}" class="fw-medium text-decoration-none">
+                {{ vacation.name }}
+              </a>
+            </td>
+            <td class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ vacation.location }}</td>
+            <td class="text-muted small">
+              {% if vacation.start_date %}
+                {{ vacation.start_date|date:"M j, Y" }}
+                {% if vacation.end_date %} &ndash; {{ vacation.end_date|date:"M j, Y" }}{% endif %}
+              {% else %}
+                <span class="fst-italic">TBD</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if vacation.rating %}
+              <span class="badge bg-secondary">{{ vacation.rating }}/10</span>
+              {% else %}
+              <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-end">${{ vacation.total_budget|floatformat:2 }}</td>
+            <td class="text-end">
+              <a href="{{ vacation.get_absolute_url }}" class="btn btn-xs btn-outline-primary me-1">View</a>
+              <a href="{% url 'vacation_edit' vacation.pk %}" class="btn btn-xs btn-outline-secondary">Edit</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-muted mb-5 fst-italic">No trips in review.</p>
+  {% endif %}
+
+  <!-- ── Taken ──────────────────────────────────────────────────────────── -->
+  <h4 class="mb-3"><span class="badge bg-success me-2">Taken</span>Past Trips</h4>
+
+  {% if taken_vacations %}
+  <div class="card mb-4">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Trip</th>
+            <th>Location</th>
+            <th>Dates</th>
+            <th class="text-end">Budget</th>
+            <th class="text-end">Spent</th>
+            <th class="text-end">Variance</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vacation in taken_vacations %}
+          <tr>
+            <td>
+              <a href="{{ vacation.get_absolute_url }}" class="fw-medium text-decoration-none">
+                {{ vacation.name }}
+              </a>
+            </td>
+            <td class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ vacation.location }}</td>
+            <td class="text-muted small">
+              {% if vacation.start_date %}
+                {{ vacation.start_date|date:"M j, Y" }}
+                {% if vacation.end_date %} &ndash; {{ vacation.end_date|date:"M j, Y" }}{% endif %}
+              {% endif %}
+            </td>
+            <td class="text-end">${{ vacation.total_budget|floatformat:2 }}</td>
+            <td class="text-end">${{ vacation.total_actual|floatformat:2 }}</td>
+            <td class="text-end {% if vacation.variance < 0 %}text-danger{% else %}text-success{% endif %}">
+              {% if vacation.variance < 0 %}-${{ vacation.variance|floatformat:2|slice:"1:" }}{% else %}${{ vacation.variance|floatformat:2 }}{% endif %}
+            </td>
+            <td class="text-end">
+              <a href="{{ vacation.get_absolute_url }}" class="btn btn-xs btn-outline-primary me-1">View</a>
+              <a href="{% url 'vacation_edit' vacation.pk %}" class="btn btn-xs btn-outline-secondary">Edit</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <p class="text-muted fst-italic">No past trips yet.</p>
+  {% endif %}
+
+  {% if not booked_vacations and not review_vacations and not taken_vacations %}
   <div class="empty-state text-center py-5">
     <i class="bi bi-map display-1 text-muted"></i>
     <h3 class="mt-3">No trips yet</h3>
