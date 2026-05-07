@@ -1,7 +1,10 @@
+import json as _json
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import F
+from django.http import JsonResponse
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
 )
@@ -248,3 +251,27 @@ class ExpenseDeleteView(LoginRequiredMixin, DeleteView):
         ctx['item_name'] = f'Expense — {self.object.description}'
         ctx['cancel_url'] = self.object.day.vacation.get_absolute_url()
         return ctx
+
+
+# ── Offline / PWA API ─────────────────────────────────────────────────────────
+
+class ExpenseCreateApiView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        try:
+            data = _json.loads(request.body)
+            day = Day.objects.select_related('vacation').get(pk=int(data['day_pk']))
+            if day.vacation.user != request.user:
+                return JsonResponse({'error': 'forbidden'}, status=403)
+            form = ExpenseForm({
+                'description': data.get('description', ''),
+                'category': data.get('category', ''),
+                'amount': data.get('amount', ''),
+            })
+            if form.is_valid():
+                expense = form.save(commit=False)
+                expense.day = day
+                expense.save()
+                return JsonResponse({'id': expense.pk, 'status': 'ok'})
+            return JsonResponse({'errors': form.errors}, status=400)
+        except (KeyError, ValueError, Day.DoesNotExist) as e:
+            return JsonResponse({'error': str(e)}, status=400)

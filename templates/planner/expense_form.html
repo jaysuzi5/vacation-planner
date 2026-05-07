@@ -1,6 +1,46 @@
 {% extends "base.html" %}
 {% block title %}{{ form_title }} — Vacation Planner{% endblock %}
 
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.querySelector('form');
+  var dayPk = {{ day.pk }};
+  var returnUrl = '{{ day.vacation.get_absolute_url }}';
+
+  form.addEventListener('submit', function (e) {
+    if (navigator.onLine) return; // normal submit
+    e.preventDefault();
+
+    var desc = form.querySelector('[name="description"]').value.trim();
+    var cat  = form.querySelector('[name="category"]').value;
+    var amt  = form.querySelector('[name="amount"]').value;
+
+    if (!desc || !cat || !amt) {
+      VP.showToast('Please fill in all fields before saving offline.', 'warning');
+      return;
+    }
+
+    VP.queueExpense(dayPk, desc, cat, parseFloat(amt))
+      .then(function () {
+        VP.showToast('Saved offline — will sync when connected.', 'success');
+        VP.updateBadge();
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+          navigator.serviceWorker.ready.then(function (sw) {
+            sw.sync.register('flush-expenses').catch(function () {});
+          });
+        }
+        setTimeout(function () { window.location.href = returnUrl; }, 1200);
+      })
+      .catch(function (err) {
+        console.error('Failed to queue expense:', err);
+        VP.showToast('Could not save offline. Try again.', 'warning');
+      });
+  });
+});
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4" style="max-width: 500px;">
 

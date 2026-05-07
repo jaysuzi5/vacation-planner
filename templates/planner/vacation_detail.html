@@ -28,6 +28,9 @@
       <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print">
         <i class="bi bi-printer me-1"></i>Print
       </button>
+      <button id="save-offline-btn" class="btn btn-outline-secondary btn-sm no-print">
+        <i class="bi bi-wifi-off me-1"></i>Save Offline
+      </button>
       <a href="{% url 'vacation_edit' vacation.pk %}" class="btn btn-outline-secondary btn-sm no-print">
         <i class="bi bi-pencil me-1"></i>Edit Trip
       </a>
@@ -207,4 +210,55 @@
   </div><!-- /itinerary -->
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Background-cache the expense add forms for every day on this page.
+if (navigator.onLine && 'caches' in window) {
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      var seen = new Set();
+      document.querySelectorAll('a[href*="/expenses/add/"]').forEach(function (a) {
+        var path = a.getAttribute('href');
+        if (path && !seen.has(path)) {
+          seen.add(path);
+          fetch(path, { credentials: 'include' })
+            .then(function (res) {
+              if (res.ok) {
+                caches.open('vp-shell-v1').then(function (c) { c.put(path, res); });
+              }
+            })
+            .catch(function () {});
+        }
+      });
+    }, 1500);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var btn = document.getElementById('save-offline-btn');
+  if (!btn) return;
+
+  if (!('caches' in window)) { btn.style.display = 'none'; return; }
+
+  btn.addEventListener('click', async function () {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
+    try {
+      var cache = await caches.open('vp-shell-v1');
+      await cache.add(window.location.pathname);
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Saved';
+      setTimeout(function () {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-wifi-off me-1"></i>Save Offline';
+      }, 2500);
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-wifi-off me-1"></i>Save Offline';
+      VP.showToast('Could not save page for offline use.', 'warning');
+    }
+  });
+});
+</script>
 {% endblock %}
