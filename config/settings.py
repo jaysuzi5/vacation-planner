@@ -37,7 +37,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
-    'config.middleware.RequestLoggingMiddleware',
+    'config.middleware.PageLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -135,6 +135,11 @@ LOGGING = {
         'planner': {
             'handlers': ['console'],
             'level': 'DEBUG',
+            'propagate': False,
+        },
+        'page': {
+            'handlers': ['console'],
+            'level': 'INFO',
             'propagate': False,
         },
     },
