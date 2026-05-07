@@ -1,0 +1,179 @@
+---
+# Local pg_dump every 6 hours — 7-day retention on PVC
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vacation-planner-backup-local
+  namespace: vacation-planner
+spec:
+  schedule: "0 */6 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: postgres:16
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: vacation-planner
+                      key: postgres_password
+              volumeMounts:
+                - name: backup-vol
+                  mountPath: /backups
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  FILE="/backups/vp-$(date +%Y%m%d-%H%M%S).dump"
+                  pg_dump -h postgresql-rw.postgresql.svc.cluster.local -U jcurtis \
+                    -d vacation_planner -F c -Z 9 -f "$FILE"
+                  find /backups -name "*.dump" -mtime +7 -delete
+          volumes:
+            - name: backup-vol
+              persistentVolumeClaim:
+                claimName: vacation-planner-backup
+
+---
+# Daily S3 upload at 2am
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vacation-planner-backup-cloud-daily
+  namespace: vacation-planner
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: s3-upload
+              image: amazon/aws-cli:latest
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: vacation-planner
+                      key: aws_access_key_id
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: vacation-planner
+                      key: aws_secret_access_key
+                - name: AWS_DEFAULT_REGION
+                  value: us-east-1
+              volumeMounts:
+                - name: backup-vol
+                  mountPath: /backups
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  LATEST=$(ls -t /backups/*.dump 2>/dev/null | head -1)
+                  [ -z "$LATEST" ] && exit 0
+                  PREFIX="vacation-planner/backups/daily/$(date +%Y/%m/%d)"
+                  aws s3 cp "$LATEST" "s3://jay-curtis-backup/$PREFIX/$(basename $LATEST)" \
+                    --storage-class STANDARD_IA
+          volumes:
+            - name: backup-vol
+              persistentVolumeClaim:
+                claimName: vacation-planner-backup
+
+---
+# Monthly S3 upload on 1st at 3am
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vacation-planner-backup-cloud-monthly
+  namespace: vacation-planner
+spec:
+  schedule: "0 3 1 * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: s3-upload
+              image: amazon/aws-cli:latest
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: vacation-planner
+                      key: aws_access_key_id
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: vacation-planner
+                      key: aws_secret_access_key
+                - name: AWS_DEFAULT_REGION
+                  value: us-east-1
+              volumeMounts:
+                - name: backup-vol
+                  mountPath: /backups
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  LATEST=$(ls -t /backups/*.dump 2>/dev/null | head -1)
+                  [ -z "$LATEST" ] && exit 0
+                  PREFIX="vacation-planner/backups/monthly/$(date +%Y/%m)"
+                  aws s3 cp "$LATEST" "s3://jay-curtis-backup/$PREFIX/$(basename $LATEST)" \
+                    --storage-class STANDARD_IA
+          volumes:
+            - name: backup-vol
+              persistentVolumeClaim:
+                claimName: vacation-planner-backup
+
+---
+# Yearly S3 upload on Jan 1st at 4am
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vacation-planner-backup-cloud-yearly
+  namespace: vacation-planner
+spec:
+  schedule: "0 4 1 1 *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: s3-upload
+              image: amazon/aws-cli:latest
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: vacation-planner
+                      key: aws_access_key_id
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: vacation-planner
+                      key: aws_secret_access_key
+                - name: AWS_DEFAULT_REGION
+                  value: us-east-1
+              volumeMounts:
+                - name: backup-vol
+                  mountPath: /backups
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  LATEST=$(ls -t /backups/*.dump 2>/dev/null | head -1)
+                  [ -z "$LATEST" ] && exit 0
+                  PREFIX="vacation-planner/backups/yearly/$(date +%Y)"
+                  aws s3 cp "$LATEST" "s3://jay-curtis-backup/$PREFIX/$(basename $LATEST)" \
+                    --storage-class STANDARD_IA
+          volumes:
+            - name: backup-vol
+              persistentVolumeClaim:
+                claimName: vacation-planner-backup

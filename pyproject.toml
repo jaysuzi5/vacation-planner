@@ -1,0 +1,23 @@
+[project]
+name = "vacation-planner"
+version = "0.1.0"
+description = "Private per-user vacation planning and expense tracking"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "cryptography>=46.0.3",
+    "django>=6.0",
+    "django-allauth>=65.13.1",
+    "django-environ>=0.12.0",
+    "gunicorn>=20.1",
+    "opentelemetry-distro>=0.60b1",
+    "opentelemetry-exporter-otlp>=1.39b1",
+    "opentelemetry-instrumentation-django>=0.60b1",
+    "opentelemetry-instrumentation-logging>=0.60b1",
+    "opentelemetry-instrumentation-requests>=0.60b1",
+    "opentelemetry-instrumentation-sqlalchemy>=0.60b1",
+    "pillow>=12.1.0",
+    "psycopg2-binary>=2.9.11",
+    "pyjwt>=2.10.1",
+    "whitenoise>=6.11.0",
+]

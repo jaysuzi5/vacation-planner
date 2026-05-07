@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ form_title }} — Vacation Planner{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 600px;">
+
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">My Trips</a></li>
+      <li class="breadcrumb-item"><a href="{{ vacation.get_absolute_url }}">{{ vacation.name }}</a></li>
+      <li class="breadcrumb-item active">{{ form_title }}</li>
+    </ol>
+  </nav>
+
+  <h2 class="mb-4">{{ form_title }}</h2>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label fw-medium">Date <span class="text-danger">*</span></label>
+          {{ form.date }}
+          {% if form.date.errors %}<div class="text-danger small mt-1">{{ form.date.errors }}</div>{% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-medium"><i class="bi bi-house me-1"></i>Where are you staying?</label>
+          {{ form.lodging }}
+          <div class="form-text">Hotel name, Airbnb address, camping site, etc.</div>
+          {% if form.lodging.errors %}<div class="text-danger small mt-1">{{ form.lodging.errors }}</div>{% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-medium"><i class="bi bi-signpost-2 me-1"></i>Excursion / Plans for the day</label>
+          {{ form.excursion }}
+          {% if form.excursion.errors %}<div class="text-danger small mt-1">{{ form.excursion.errors }}</div>{% endif %}
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-medium"><i class="bi bi-chat-left-text me-1"></i>Daily Notes</label>
+          {{ form.notes }}
+          {% if form.notes.errors %}<div class="text-danger small mt-1">{{ form.notes.errors }}</div>{% endif %}
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>{{ submit_label }}
+          </button>
+          <a href="{{ vacation.get_absolute_url }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

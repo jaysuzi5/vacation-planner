@@ -1,0 +1,14 @@
+.git/
+__pycache__/
+*.pyc
+.venv/
+venv/
+uv.lock
+staticfiles/
+media/
+node_modules/
+*.min.js
+*.min.css
+.env
+.env.*
+k8s/temp.yaml

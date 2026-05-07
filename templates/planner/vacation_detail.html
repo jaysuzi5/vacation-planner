@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}{{ vacation.name }} — Vacation Planner{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+          <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">My Trips</a></li>
+          <li class="breadcrumb-item active">{{ vacation.name }}</li>
+        </ol>
+      </nav>
+      <h1 class="h2 mb-1">{{ vacation.name }}</h1>
+      <p class="text-muted mb-0">
+        <i class="bi bi-geo-alt me-1"></i>{{ vacation.location }}
+        {% if vacation.start_date %}
+          &nbsp;&bull;&nbsp;<i class="bi bi-calendar3 me-1"></i>{{ vacation.start_date|date:"M j" }}
+          {% if vacation.end_date %}&ndash;{{ vacation.end_date|date:"M j, Y" }}{% endif %}
+          {% if vacation.duration_days %}({{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }}){% endif %}
+        {% endif %}
+      </p>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <span class="badge {{ vacation.status_badge_class }} fs-6">{{ vacation.get_status_display }}</span>
+      <a href="{% url 'vacation_edit' vacation.pk %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-pencil me-1"></i>Edit Trip
+      </a>
+      <a href="{% url 'vacation_delete' vacation.pk %}" class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-trash me-1"></i>Delete
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Budget vs Actual Table -->
+    <div class="col-lg-5">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Budget vs. Actual</h5>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Category</th>
+                <th class="text-end">Budget</th>
+                <th class="text-end">Actual</th>
+                <th class="text-end">Variance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in budget_rows %}
+              <tr>
+                <td>
+                  <i class="{{ row.icon }} me-1 text-muted"></i>{{ row.label }}
+                </td>
+                <td class="text-end">${{ row.budget|floatformat:2 }}</td>
+                <td class="text-end">${{ row.actual|floatformat:2 }}</td>
+                <td class="text-end {% if row.variance < 0 %}text-danger{% else %}text-success{% endif %}">
+                  {% if row.variance < 0 %}-${{ row.variance|floatformat:2|slice:"1:" }}{% else %}${{ row.variance|floatformat:2 }}{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light fw-bold">
+              <tr>
+                <td>Total</td>
+                <td class="text-end">${{ vacation.total_budget|floatformat:2 }}</td>
+                <td class="text-end">${{ vacation.total_actual|floatformat:2 }}</td>
+                <td class="text-end {% if vacation.variance < 0 %}text-danger{% else %}text-success{% endif %}">
+                  {% if vacation.variance < 0 %}-${{ vacation.variance|floatformat:2|slice:"1:" }}{% else %}${{ vacation.variance|floatformat:2 }}{% endif %}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="card-footer text-muted small">
+          Variance = Budget &minus; Actual. Positive = under budget.
+        </div>
+      </div>
+    </div>
+
+    <!-- Trip Notes -->
+    <div class="col-lg-7">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0"><i class="bi bi-journal-text me-2"></i>Trip Notes</h5>
+          <a href="{% url 'vacation_edit' vacation.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+        </div>
+        <div class="card-body">
+          {% if vacation.notes %}
+          <div class="trip-notes">{{ vacation.notes|linebreaks }}</div>
+          {% else %}
+          <p class="text-muted fst-italic mb-0">No trip notes yet. <a href="{% url 'vacation_edit' vacation.pk %}">Add some.</a></p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /row -->
+
+  <!-- Itinerary -->
+  <div class="mt-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h4 class="mb-0"><i class="bi bi-calendar-week me-2"></i>Daily Itinerary</h4>
+      <a href="{% url 'day_create' vacation.pk %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Add Day
+      </a>
+    </div>
+
+    {% if days %}
+    {% for day in days %}
+    <div class="card mb-3 day-card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div>
+          <strong class="me-2">{{ day.date|date:"l, M j, Y" }}</strong>
+          {% if day.lodging %}
+          <span class="text-muted small"><i class="bi bi-house me-1"></i>{{ day.lodging }}</span>
+          {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'expense_create' day.pk %}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-plus me-1"></i>Add Expense
+          </a>
+          <a href="{% url 'day_edit' day.pk %}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <a href="{% url 'day_delete' day.pk %}" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trash"></i>
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+
+        {% if day.excursion %}
+        <p class="mb-2"><i class="bi bi-signpost-2 me-2 text-primary"></i><strong>Excursion:</strong> {{ day.excursion }}</p>
+        {% endif %}
+
+        {% if day.notes %}
+        <p class="mb-3 text-muted small"><i class="bi bi-chat-left-text me-1"></i>{{ day.notes }}</p>
+        {% endif %}
+
+        {% if day.expenses.all %}
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Description</th>
+              <th>Category</th>
+              <th class="text-end">Amount</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for expense in day.expenses.all %}
+            <tr>
+              <td>{{ expense.description }}</td>
+              <td>
+                <span class="badge bg-light text-dark">{{ expense.get_category_display }}</span>
+              </td>
+              <td class="text-end">${{ expense.amount|floatformat:2 }}</td>
+              <td class="text-end">
+                <a href="{% url 'expense_edit' expense.pk %}" class="btn btn-xs btn-outline-secondary me-1">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <a href="{% url 'expense_delete' expense.pk %}" class="btn btn-xs btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="2" class="fw-bold">Day Total</td>
+              <td class="text-end fw-bold">${{ day.day_total|floatformat:2 }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+        {% else %}
+        <p class="text-muted small mb-0 fst-italic">No expenses logged for this day.
+          <a href="{% url 'expense_create' day.pk %}">Add one.</a>
+        </p>
+        {% endif %}
+
+      </div>
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="empty-state text-center py-4 border rounded">
+      <i class="bi bi-calendar-plus display-4 text-muted"></i>
+      <p class="mt-2 text-muted">No days in the itinerary yet.</p>
+      <a href="{% url 'day_create' vacation.pk %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>Add First Day
+      </a>
+    </div>
+    {% endif %}
+
+  </div><!-- /itinerary -->
+
+</div>
+{% endblock %}

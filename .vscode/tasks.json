@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compact Session",
+      "type": "shell",
+      "command": "echo '/compact' | pbcopy && echo 'Copied /compact to clipboard'"
+    },
+    {
+      "label": "View Token Usage",
+      "type": "shell",
+      "command": "echo '/caveman-stats' | pbcopy && echo 'Copied /caveman-stats to clipboard'"
+    },
+    {
+      "label": "Run Dev Server",
+      "type": "shell",
+      "command": "uv run python manage.py runserver",
+      "group": "build"
+    },
+    {
+      "label": "Run Migrations",
+      "type": "shell",
+      "command": "uv run python manage.py migrate"
+    },
+    {
+      "label": "Make Migrations",
+      "type": "shell",
+      "command": "uv run python manage.py makemigrations"
+    },
+    {
+      "label": "Django Check",
+      "type": "shell",
+      "command": "uv run python manage.py check"
+    }
+  ]
+}

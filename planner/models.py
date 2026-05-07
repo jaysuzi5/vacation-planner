@@ -1,0 +1,165 @@
+from decimal import Decimal
+from django.contrib.auth.models import User
+from django.db import models
+from django.urls import reverse
+
+
+class Vacation(models.Model):
+    STATUS_REVIEW = 'review'
+    STATUS_BOOKED = 'booked'
+    STATUS_TAKEN = 'taken'
+    STATUS_CHOICES = [
+        (STATUS_REVIEW, 'In Review'),
+        (STATUS_BOOKED, 'Booked'),
+        (STATUS_TAKEN, 'Taken'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vacations')
+    name = models.CharField(max_length=200)
+    location = models.CharField(max_length=200)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_REVIEW)
+    notes = models.TextField(blank=True)
+
+    # Budget
+    airfare_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    lodging_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    meals_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    excursions_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    gas_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    misc_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    cruise_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    car_rental_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+
+    # Actual
+    airfare_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    lodging_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    meals_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    excursions_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    gas_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    misc_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    cruise_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    car_rental_actual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-start_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.name} — {self.location}"
+
+    def get_absolute_url(self):
+        return reverse('vacation_detail', kwargs={'pk': self.pk})
+
+    @property
+    def total_budget(self):
+        return (self.airfare_budget + self.lodging_budget + self.meals_budget +
+                self.excursions_budget + self.gas_budget + self.misc_budget +
+                self.cruise_budget + self.car_rental_budget)
+
+    @property
+    def total_actual(self):
+        return (self.airfare_actual + self.lodging_actual + self.meals_actual +
+                self.excursions_actual + self.gas_actual + self.misc_actual +
+                self.cruise_actual + self.car_rental_actual)
+
+    @property
+    def variance(self):
+        return self.total_budget - self.total_actual
+
+    @property
+    def status_badge_class(self):
+        return {
+            self.STATUS_REVIEW: 'bg-warning text-dark',
+            self.STATUS_BOOKED: 'bg-primary',
+            self.STATUS_TAKEN: 'bg-success',
+        }.get(self.status, 'bg-secondary')
+
+    @property
+    def duration_days(self):
+        if self.start_date and self.end_date:
+            return (self.end_date - self.start_date).days + 1
+        return None
+
+    def budget_rows(self):
+        categories = [
+            ('Airfare', self.airfare_budget, self.airfare_actual, 'bi-airplane'),
+            ('Lodging', self.lodging_budget, self.lodging_actual, 'bi-house'),
+            ('Meals', self.meals_budget, self.meals_actual, 'bi-cup-hot'),
+            ('Excursions', self.excursions_budget, self.excursions_actual, 'bi-map'),
+            ('Gas', self.gas_budget, self.gas_actual, 'bi-fuel-pump'),
+            ('Cruise', self.cruise_budget, self.cruise_actual, 'bi-ship'),
+            ('Car Rental', self.car_rental_budget, self.car_rental_actual, 'bi-car-front'),
+            ('Miscellaneous', self.misc_budget, self.misc_actual, 'bi-three-dots'),
+        ]
+        return [
+            {
+                'label': label,
+                'budget': budget,
+                'actual': actual,
+                'variance': budget - actual,
+                'icon': icon,
+            }
+            for label, budget, actual, icon in categories
+        ]
+
+
+class Day(models.Model):
+    vacation = models.ForeignKey(Vacation, on_delete=models.CASCADE, related_name='days')
+    date = models.DateField()
+    lodging = models.CharField(max_length=200, blank=True)
+    excursion = models.CharField(max_length=300, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['date']
+        unique_together = ['vacation', 'date']
+
+    def __str__(self):
+        return f"{self.vacation.name} — {self.date}"
+
+    def get_absolute_url(self):
+        return reverse('vacation_detail', kwargs={'pk': self.vacation.pk})
+
+    def day_total(self):
+        return self.expenses.aggregate(
+            total=models.Sum('amount')
+        )['total'] or Decimal('0.00')
+
+
+class Expense(models.Model):
+    CATEGORY_AIRFARE = 'airfare'
+    CATEGORY_LODGING = 'lodging'
+    CATEGORY_MEALS = 'meals'
+    CATEGORY_EXCURSIONS = 'excursions'
+    CATEGORY_GAS = 'gas'
+    CATEGORY_CRUISE = 'cruise'
+    CATEGORY_CAR_RENTAL = 'car_rental'
+    CATEGORY_MISC = 'misc'
+    CATEGORY_CHOICES = [
+        (CATEGORY_AIRFARE, 'Airfare'),
+        (CATEGORY_LODGING, 'Lodging'),
+        (CATEGORY_MEALS, 'Meals'),
+        (CATEGORY_EXCURSIONS, 'Excursions'),
+        (CATEGORY_GAS, 'Gas'),
+        (CATEGORY_CRUISE, 'Cruise'),
+        (CATEGORY_CAR_RENTAL, 'Car Rental'),
+        (CATEGORY_MISC, 'Miscellaneous'),
+    ]
+
+    day = models.ForeignKey(Day, on_delete=models.CASCADE, related_name='expenses')
+    description = models.CharField(max_length=300)
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        ordering = ['category', 'description']
+
+    def __str__(self):
+        return f"{self.description} — ${self.amount}"
+
+    def get_absolute_url(self):
+        return reverse('vacation_detail', kwargs={'pk': self.day.vacation.pk})
