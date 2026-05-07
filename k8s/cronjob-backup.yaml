@@ -14,7 +14,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: backup
-              image: postgres:16
+              image: postgres:17
               env:
                 - name: PGPASSWORD
                   valueFrom:
