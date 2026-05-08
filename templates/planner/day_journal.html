@@ -95,9 +95,9 @@
           <form method="post" enctype="multipart/form-data" class="mb-4">
             {% csrf_token %}
             <input type="hidden" name="action" value="upload">
+            <input type="file" class="form-control mb-2" name="image" accept="image/*" required>
             <div class="input-group">
-              <input type="file" class="form-control" name="image" accept="image/*" required>
-              <input type="text" class="form-control" name="caption" placeholder="Caption (optional)" style="max-width:200px;">
+              <input type="text" class="form-control" name="caption" placeholder="Caption (optional)">
               <button type="submit" class="btn btn-outline-primary text-nowrap">
                 <i class="bi bi-cloud-upload me-1"></i>Upload
               </button>
@@ -159,6 +159,11 @@
         if (!db.objectStoreNames.contains(STORE)) {
           db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
         }
+      };
+      req.onblocked = () => {
+        // Old connection (stale offline-queue.js) is open; reload to get fresh version
+        console.warn('IDB upgrade blocked by open connection — reloading');
+        location.reload();
       };
       req.onsuccess = e => resolve(e.target.result);
       req.onerror = e => reject(e.target.error);

@@ -411,6 +411,7 @@ class ExpenseEditView(LoginRequiredMixin, UpdateView):
         ctx['day'] = self.object.day
         ctx['form_title'] = f'Edit Expense — {self.object.description}'
         ctx['submit_label'] = 'Save Expense'
+        ctx['expense_pk'] = self.object.pk
         return ctx
 
 
