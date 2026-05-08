@@ -33,11 +33,6 @@
             <label class="form-label fw-medium">Status</label>
             {{ form.status }}
           </div>
-          <div class="col-12">
-            <label class="form-label fw-medium">Location <span class="text-danger">*</span></label>
-            {{ form.location }}
-            {% if form.location.errors %}<div class="text-danger small mt-1">{{ form.location.errors }}</div>{% endif %}
-          </div>
           <div class="col-md-6">
             <label class="form-label fw-medium">Start Date</label>
             {{ form.start_date }}
@@ -45,11 +40,6 @@
           <div class="col-md-6">
             <label class="form-label fw-medium">End Date</label>
             {{ form.end_date }}
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-medium">Rating <span class="text-muted small">(1–10)</span></label>
-            {{ form.rating }}
-            {% if form.rating.errors %}<div class="text-danger small mt-1">{{ form.rating.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
             <label class="form-label fw-medium">Trip Notes</label>

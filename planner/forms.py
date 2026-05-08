@@ -6,7 +6,7 @@ class VacationForm(forms.ModelForm):
     class Meta:
         model = Vacation
         fields = [
-            'name', 'location', 'start_date', 'end_date', 'status', 'rating', 'notes',
+            'name', 'start_date', 'end_date', 'status', 'notes',
             'airfare_budget', 'lodging_budget', 'meals_budget',
             'excursions_budget', 'gas_budget', 'cruise_budget', 'car_rental_budget', 'misc_budget',
         ]
@@ -15,7 +15,6 @@ class VacationForm(forms.ModelForm):
             'end_date': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 4}),
             'status': forms.Select(attrs={'class': 'form-select'}),
-            'rating': forms.NumberInput(attrs={'min': 1, 'max': 10, 'class': 'form-control', 'style': 'width:100px'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -25,7 +24,7 @@ class VacationForm(forms.ModelForm):
             'excursions_budget', 'gas_budget', 'cruise_budget', 'car_rental_budget', 'misc_budget',
         ]:
             self.fields[field].widget.attrs.update({'step': '0.01', 'min': '0', 'class': 'form-control'})
-        for field in ['name', 'location', 'notes']:
+        for field in ['name', 'notes']:
             self.fields[field].widget.attrs.update({'class': 'form-control'})
 
 
@@ -44,9 +43,10 @@ class DayForm(forms.ModelForm):
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
-        fields = ['description', 'category', 'amount']
+        fields = ['description', 'category', 'amount', 'notes']
         widgets = {
             'description': forms.TextInput(attrs={'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
             'amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'class': 'form-control'}),
+            'notes': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional note'}),
         }

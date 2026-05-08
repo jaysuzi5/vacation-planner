@@ -15,9 +15,9 @@ class DayInline(admin.StackedInline):
 
 @admin.register(Vacation)
 class VacationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'location', 'user', 'status', 'start_date', 'end_date', 'total_budget', 'total_actual']
+    list_display = ['name', 'user', 'status', 'start_date', 'end_date', 'total_budget', 'total_actual']
     list_filter = ['status', 'user']
-    search_fields = ['name', 'location', 'user__email']
+    search_fields = ['name', 'user__email']
     inlines = [DayInline]
     readonly_fields = ['created_at', 'updated_at']
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vp-shell-v1';
+const CACHE_NAME = 'vp-shell-v2';
 const STATIC_ORIGINS = ['cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 const SKIP_PATHS = ['/api/', '/admin/', '/accounts/'];
 

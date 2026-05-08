@@ -44,7 +44,7 @@ class DashboardView(LoginRequiredMixin, ListView):
         )
         ctx['review_vacations'] = (
             Vacation.objects.filter(user=user, status=Vacation.STATUS_REVIEW)
-            .order_by(F('rating').desc(nulls_last=True), 'name')
+            .order_by(F('start_date').asc(nulls_last=True))
         )
         ctx['taken_vacations'] = (
             Vacation.objects.filter(user=user, status=Vacation.STATUS_TAKEN)
@@ -78,6 +78,7 @@ class VacationDetailView(LoginRequiredMixin, DetailView):
                     'date': day.date.strftime('%b %-d, %Y'),
                     'description': exp.description,
                     'amount': float(exp.amount),
+                    'notes': exp.notes,
                 })
         ctx['expenses_by_category_json'] = _json.dumps(dict(by_cat))
         return ctx

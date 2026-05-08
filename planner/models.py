@@ -18,12 +18,10 @@ class Vacation(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vacations')
     name = models.CharField(max_length=200)
-    location = models.CharField(max_length=200)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_REVIEW)
     notes = models.TextField(blank=True)
-    rating = models.PositiveSmallIntegerField(null=True, blank=True)
 
     # Budget
     airfare_budget = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
@@ -52,7 +50,7 @@ class Vacation(models.Model):
         ordering = ['-start_date', '-created_at']
 
     def __str__(self):
-        return f"{self.name} — {self.location}"
+        return self.name
 
     def get_absolute_url(self):
         return reverse('vacation_detail', kwargs={'pk': self.pk})
@@ -167,12 +165,15 @@ class Expense(models.Model):
     description = models.CharField(max_length=300)
     category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    notes = models.TextField(blank=True)
 
     class Meta:
         ordering = ['category', 'description']
 
     def __str__(self):
         return f"{self.description} — ${self.amount}"
+
+
 
     def get_absolute_url(self):
         return reverse('vacation_detail', kwargs={'pk': self.day.vacation.pk})

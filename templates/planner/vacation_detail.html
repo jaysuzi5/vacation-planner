@@ -15,9 +15,8 @@
       </nav>
       <h1 class="h2 mb-1">{{ vacation.name }}</h1>
       <p class="text-muted mb-0">
-        <i class="bi bi-geo-alt me-1"></i>{{ vacation.location }}
         {% if vacation.start_date %}
-          &nbsp;&bull;&nbsp;<i class="bi bi-calendar3 me-1"></i>{{ vacation.start_date|date:"M j" }}
+          <i class="bi bi-calendar3 me-1"></i>{{ vacation.start_date|date:"M j" }}
           {% if vacation.end_date %}&ndash;{{ vacation.end_date|date:"M j, Y" }}{% endif %}
           {% if vacation.duration_days %}({{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }}){% endif %}
         {% endif %}
@@ -126,7 +125,7 @@
         <div>
           <strong class="me-2">{{ day.date|date:"l, M j, Y" }}</strong>
           {% if day.lodging %}
-          <span class="text-muted small"><i class="bi bi-house me-1"></i>{{ day.lodging }}</span>
+          <span class="text-muted small">{{ day.lodging }}</span>
           {% endif %}
         </div>
         <div class="d-flex gap-2 no-print">
@@ -164,7 +163,7 @@
           <tbody>
             {% for expense in day.expenses.all %}
             <tr>
-              <td>{{ expense.description }}</td>
+              <td>{{ expense.description }}{% if expense.notes %}<br><span class="text-muted small fst-italic">{{ expense.notes }}</span>{% endif %}</td>
               <td>
                 <span class="badge bg-light text-dark">{{ expense.get_category_display }}</span>
               </td>
@@ -242,16 +241,17 @@ function showCategoryExpenses(label, key) {
     expenses.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
     var total = expenses.reduce(function (s, e) { return s + e.amount; }, 0);
     var rows = expenses.map(function (e) {
+      var desc = e.description + (e.notes ? '<br><span class="text-muted small fst-italic">' + e.notes + '</span>' : '');
       return '<tr>' +
-        '<td class="text-muted small">' + e.date + '</td>' +
-        '<td>' + e.description + '</td>' +
+        '<td class="text-muted small text-nowrap">' + e.date + '</td>' +
+        '<td>' + desc + '</td>' +
         '<td class="text-end">$' + e.amount.toFixed(2) + '</td>' +
         '</tr>';
     }).join('');
     body.innerHTML =
       '<table class="table table-sm mb-0">' +
         '<thead class="table-light">' +
-          '<tr><th>Date</th><th>Description</th><th class="text-end">Amount</th></tr>' +
+          '<tr><th style="white-space:nowrap">Date</th><th>Description</th><th class="text-end">Amount</th></tr>' +
         '</thead>' +
         '<tbody>' + rows + '</tbody>' +
         '<tfoot class="table-light fw-bold">' +
@@ -276,7 +276,7 @@ if (navigator.onLine && 'caches' in window) {
           fetch(path, { credentials: 'include' })
             .then(function (res) {
               if (res.ok) {
-                caches.open('vp-shell-v1').then(function (c) { c.put(path, res); });
+                caches.open('vp-shell-v2').then(function (c) { c.put(path, res); });
               }
             })
             .catch(function () {});
@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
     try {
-      var cache = await caches.open('vp-shell-v1');
+      var cache = await caches.open('vp-shell-v2');
       await cache.add(window.location.pathname);
       btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Saved';
       setTimeout(function () {
