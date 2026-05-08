@@ -38,18 +38,37 @@ class DashboardView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         user = self.request.user
-        ctx['booked_vacations'] = (
+        booked = list(
             Vacation.objects.filter(user=user, status=Vacation.STATUS_BOOKED)
             .order_by('start_date')
         )
-        ctx['review_vacations'] = (
+        review = list(
             Vacation.objects.filter(user=user, status=Vacation.STATUS_REVIEW)
             .order_by(F('start_date').asc(nulls_last=True))
         )
-        ctx['taken_vacations'] = (
+        taken = list(
             Vacation.objects.filter(user=user, status=Vacation.STATUS_TAKEN)
             .order_by('-start_date')
         )
+        ctx['booked_vacations'] = booked
+        ctx['review_vacations'] = review
+        ctx['taken_vacations'] = taken
+
+        ctx['booked_total_budget'] = sum(v.total_budget for v in booked)
+        ctx['booked_total_actual'] = sum(v.total_actual for v in booked)
+        ctx['booked_remaining'] = ctx['booked_total_budget'] - ctx['booked_total_actual']
+
+        review_budget = sum(v.total_budget for v in review)
+        ctx['review_total_budget'] = review_budget
+        ctx['review_avg_budget'] = round(review_budget / len(review)) if review else 0
+
+        taken_budget = sum(v.total_budget for v in taken)
+        taken_actual = sum(v.total_actual for v in taken)
+        ctx['taken_total_budget'] = taken_budget
+        ctx['taken_total_actual'] = taken_actual
+        ctx['taken_total_variance'] = taken_budget - taken_actual
+        ctx['taken_avg_budget'] = round(taken_budget / len(taken)) if taken else 0
+        ctx['taken_avg_actual'] = round(taken_actual / len(taken)) if taken else 0
         return ctx
 
 

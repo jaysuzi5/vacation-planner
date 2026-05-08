@@ -18,10 +18,6 @@ _SKIP_PREFIXES = ("/admin/", "/accounts/", "/static/", "/favicon")
 
 
 def setup_otel():
-    """
-    Use providers already initialised by opentelemetry-instrument CLI.
-    We only add the 'page' LoggingHandler on top — no provider overrides.
-    """
     global _initialized, _page_visits, _tracer
     if _initialized:
         return
@@ -29,8 +25,46 @@ def setup_otel():
 
     try:
         from opentelemetry import trace, metrics
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.sdk.metrics import MeterProvider
+        from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+        from opentelemetry.sdk.resources import Resource, SERVICE_NAME
+        from opentelemetry.sdk._logs import LoggerProvider
+        from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+        from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+        from opentelemetry._logs import set_logger_provider
+        from opentelemetry.sdk._logs import LoggingHandler
 
-        _tracer = trace.get_tracer(SERVICE)
+        resource = Resource({SERVICE_NAME: SERVICE, "host.name": HOSTNAME})
+        otlp_endpoint = os.getenv("OTLP_ENDPOINT", "")
+
+        if otlp_endpoint:
+            tp = TracerProvider(resource=resource)
+            tp.add_span_processor(
+                BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{otlp_endpoint}/v1/traces"))
+            )
+            trace.set_tracer_provider(tp)
+
+            mp = MeterProvider(
+                resource=resource,
+                metric_readers=[
+                    PeriodicExportingMetricReader(
+                        OTLPMetricExporter(endpoint=f"{otlp_endpoint}/v1/metrics")
+                    )
+                ],
+            )
+            metrics.set_meter_provider(mp)
+
+            lp = LoggerProvider(resource=resource)
+            lp.add_log_record_processor(
+                BatchLogRecordProcessor(OTLPLogExporter(endpoint=f"{otlp_endpoint}/v1/logs"))
+            )
+            set_logger_provider(lp)
+            handler = LoggingHandler(level=logging.INFO, logger_provider=lp)
+            logging.getLogger("page").addHandler(handler)
 
         meter = metrics.get_meter(SERVICE)
         _page_visits = meter.create_counter(
@@ -38,36 +72,7 @@ def setup_otel():
             description="Total page visits",
             unit="1",
         )
-
-        # Wire the 'page' Python logger → OTEL LoggerProvider → OTLP exporter.
-        # The existing provider may be a NoOp if OTEL_LOGS_EXPORTER is not set;
-        # in that case we fall back to the HTTP log exporter via OTLP_ENDPOINT.
-        otlp_endpoint = os.getenv("OTLP_ENDPOINT", "")
-        try:
-            from opentelemetry._logs import get_logger_provider
-            from opentelemetry.sdk._logs import LoggingHandler, LoggerProvider
-            from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-            from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
-            from opentelemetry.sdk.resources import Resource, SERVICE_NAME
-            from opentelemetry._logs import set_logger_provider
-
-            lp = get_logger_provider()
-            # If the auto-instrumented provider is a real SDK provider it will
-            # have add_log_record_processor; NoOp providers do not.
-            if otlp_endpoint and not hasattr(lp, "add_log_record_processor"):
-                resource = Resource({SERVICE_NAME: SERVICE, "host.name": HOSTNAME})
-                lp = LoggerProvider(resource=resource)
-                lp.add_log_record_processor(
-                    BatchLogRecordProcessor(
-                        OTLPLogExporter(endpoint=f"{otlp_endpoint}/v1/logs")
-                    )
-                )
-                set_logger_provider(lp)
-
-            handler = LoggingHandler(level=logging.INFO, logger_provider=lp)
-            logging.getLogger("page").addHandler(handler)
-        except Exception:
-            _page_logger.warning("OTEL log handler setup failed; page logs go to console only")
+        _tracer = trace.get_tracer(SERVICE)
 
     except ImportError:
         _page_logger.warning("opentelemetry packages not installed; traces and metrics disabled")
@@ -92,7 +97,7 @@ def _endpoint_from_path(path):
 def log_request(request, transaction_id, endpoint):
     user = getattr(request, "user", None)
     payload = {
-        "event": "page_request",
+        "event": "Request",
         "method": request.method,
         "version": VERSION,
         "service": SERVICE,
@@ -104,6 +109,7 @@ def log_request(request, transaction_id, endpoint):
         "path": request.path,
         "remote_addr": _remote_addr(request),
         "user": user.email if user and user.is_authenticated else "anonymous",
+        "request_body": {},
         "query_params": dict(request.GET),
     }
     _page_logger.info(json.dumps(payload))
@@ -113,7 +119,7 @@ def log_response(request, transaction_id, endpoint, status, duration, trace_id=N
     user = getattr(request, "user", None)
     level = "INFO" if status < 400 else "ERROR"
     payload = {
-        "event": "page_response",
+        "event": "Response",
         "method": request.method,
         "version": VERSION,
         "service": SERVICE,
@@ -126,6 +132,7 @@ def log_response(request, transaction_id, endpoint, status, duration, trace_id=N
         "duration_seconds": round(duration, 6),
         "status": status,
         "user": user.email if user and user.is_authenticated else "anonymous",
+        "response_body": getattr(request, "otel_page_summary", {}),
     }
     if trace_id:
         payload["trace_id"] = trace_id

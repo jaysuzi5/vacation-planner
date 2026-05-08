@@ -93,8 +93,6 @@ spec:
                   name: vacation-planner
                   key: email_password
                   optional: true
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://otel-collector-collector.monitoring.svc.cluster.local:4317"
             - name: OTEL_SERVICE_NAME
               value: "vacation-planner"
             - name: OTLP_ENDPOINT
