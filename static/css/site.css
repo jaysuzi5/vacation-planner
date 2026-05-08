@@ -224,6 +224,19 @@ body {
   color: var(--color-text-secondary);
 }
 
+/* Clickable budget rows */
+.budget-row-drilldown {
+  cursor: pointer;
+}
+
+.budget-row-drilldown:hover {
+  background-color: rgba(37, 99, 235, 0.06) !important;
+}
+
+[data-bs-theme="dark"] .budget-row-drilldown:hover {
+  background-color: rgba(37, 99, 235, 0.12) !important;
+}
+
 /* Tables in budget section */
 .table {
   --bs-table-bg: transparent;

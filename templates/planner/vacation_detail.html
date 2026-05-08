@@ -60,9 +60,10 @@
             </thead>
             <tbody>
               {% for row in budget_rows %}
-              <tr>
+              <tr {% if row.actual > 0 %}class="budget-row-drilldown" onclick="showCategoryExpenses('{{ row.label }}', '{{ row.key }}')" title="Click to see breakdown"{% endif %}>
                 <td>
                   <i class="{{ row.icon }} me-1 text-muted"></i>{{ row.label }}
+                  {% if row.actual > 0 %}<i class="bi bi-chevron-right ms-1 text-muted" style="font-size:0.7rem;"></i>{% endif %}
                 </td>
                 <td class="text-end">${{ row.budget|floatformat:2 }}</td>
                 <td class="text-end">${{ row.actual|floatformat:2 }}</td>
@@ -210,9 +211,58 @@
   </div><!-- /itinerary -->
 
 </div>
+
+<!-- Category expense drill-down modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="categoryModalTitle"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0" id="categoryModalBody"></div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
+<script>
+var EXPENSES_BY_CAT = {{ expenses_by_category_json|safe }};
+
+function showCategoryExpenses(label, key) {
+  var expenses = EXPENSES_BY_CAT[key] || [];
+  document.getElementById('categoryModalTitle').textContent = label + ' — Expenses';
+
+  var body = document.getElementById('categoryModalBody');
+  if (expenses.length === 0) {
+    body.innerHTML = '<p class="p-3 text-muted fst-italic mb-0">No expenses recorded for this category.</p>';
+  } else {
+    expenses.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    var total = expenses.reduce(function (s, e) { return s + e.amount; }, 0);
+    var rows = expenses.map(function (e) {
+      return '<tr>' +
+        '<td class="text-muted small">' + e.date + '</td>' +
+        '<td>' + e.description + '</td>' +
+        '<td class="text-end">$' + e.amount.toFixed(2) + '</td>' +
+        '</tr>';
+    }).join('');
+    body.innerHTML =
+      '<table class="table table-sm mb-0">' +
+        '<thead class="table-light">' +
+          '<tr><th>Date</th><th>Description</th><th class="text-end">Amount</th></tr>' +
+        '</thead>' +
+        '<tbody>' + rows + '</tbody>' +
+        '<tfoot class="table-light fw-bold">' +
+          '<tr><td colspan="2">Total</td><td class="text-end">$' + total.toFixed(2) + '</td></tr>' +
+        '</tfoot>' +
+      '</table>';
+  }
+
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('categoryModal')).show();
+}
+</script>
 <script>
 // Background-cache the expense add forms for every day on this page.
 if (navigator.onLine && 'caches' in window) {

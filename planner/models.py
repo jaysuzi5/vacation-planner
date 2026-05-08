@@ -98,24 +98,25 @@ class Vacation(models.Model):
     def budget_rows(self):
         totals = self.expense_totals
         categories = [
-            ('Airfare', self.airfare_budget, totals['airfare'], 'bi-airplane'),
-            ('Lodging', self.lodging_budget, totals['lodging'], 'bi-house'),
-            ('Meals', self.meals_budget, totals['meals'], 'bi-cup-hot'),
-            ('Excursions', self.excursions_budget, totals['excursions'], 'bi-map'),
-            ('Gas', self.gas_budget, totals['gas'], 'bi-fuel-pump'),
-            ('Cruise', self.cruise_budget, totals['cruise'], 'bi-compass'),
-            ('Car Rental', self.car_rental_budget, totals['car_rental'], 'bi-car-front'),
-            ('Misc.', self.misc_budget, totals['misc'], 'bi-bag'),
+            ('airfare',    'Airfare',    self.airfare_budget,    totals['airfare'],    'bi-airplane'),
+            ('lodging',    'Lodging',    self.lodging_budget,    totals['lodging'],    'bi-house'),
+            ('meals',      'Meals',      self.meals_budget,      totals['meals'],      'bi-cup-hot'),
+            ('excursions', 'Excursions', self.excursions_budget, totals['excursions'], 'bi-map'),
+            ('gas',        'Gas',        self.gas_budget,        totals['gas'],        'bi-fuel-pump'),
+            ('cruise',     'Cruise',     self.cruise_budget,     totals['cruise'],     'bi-compass'),
+            ('car_rental', 'Car Rental', self.car_rental_budget, totals['car_rental'], 'bi-car-front'),
+            ('misc',       'Misc.',      self.misc_budget,       totals['misc'],       'bi-bag'),
         ]
         return [
             {
+                'key': key,
                 'label': label,
                 'budget': budget,
                 'actual': actual,
                 'variance': budget - actual,
                 'icon': icon,
             }
-            for label, budget, actual, icon in categories
+            for key, label, budget, actual, icon in categories
         ]
 
 

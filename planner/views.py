@@ -1,4 +1,5 @@
 import json as _json
+from collections import defaultdict
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import F
@@ -66,8 +67,19 @@ class VacationDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         vacation = self.object
-        ctx['days'] = vacation.days.prefetch_related('expenses').all()
+        days = vacation.days.prefetch_related('expenses').all()
+        ctx['days'] = days
         ctx['budget_rows'] = vacation.budget_rows()
+
+        by_cat = defaultdict(list)
+        for day in days:
+            for exp in day.expenses.all():
+                by_cat[exp.category].append({
+                    'date': day.date.strftime('%b %-d, %Y'),
+                    'description': exp.description,
+                    'amount': float(exp.amount),
+                })
+        ctx['expenses_by_category_json'] = _json.dumps(dict(by_cat))
         return ctx
 
 
