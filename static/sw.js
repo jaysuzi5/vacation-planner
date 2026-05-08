@@ -74,15 +74,21 @@ self.addEventListener('fetch', event => {
   }
 });
 
-// ── Background Sync: flush offline expense queue ─────────────────────────────
+// ── Background Sync: flush offline queues ────────────────────────────────────
 const SW_DB = 'vp-offline';
-const SW_STORE = 'pending_expenses';
+const SW_DB_VERSION = 2;
 
 function swOpenDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(SW_DB, 1);
+    const req = indexedDB.open(SW_DB, SW_DB_VERSION);
     req.onupgradeneeded = e => {
-      e.target.result.createObjectStore(SW_STORE, { keyPath: 'id', autoIncrement: true });
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pending_expenses')) {
+        db.createObjectStore('pending_expenses', { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains('pending_journals')) {
+        db.createObjectStore('pending_journals', { keyPath: 'id', autoIncrement: true });
+      }
     };
     req.onsuccess = e => resolve(e.target.result);
     req.onerror = e => reject(e.target.error);
@@ -92,14 +98,16 @@ function swOpenDb() {
 self.addEventListener('sync', event => {
   if (event.tag === 'flush-expenses') {
     event.waitUntil(swFlushExpenses());
+  } else if (event.tag === 'flush-journals') {
+    event.waitUntil(swFlushJournals());
   }
 });
 
 async function swFlushExpenses() {
   const db = await swOpenDb();
   const items = await new Promise((resolve, reject) => {
-    const tx = db.transaction(SW_STORE, 'readonly');
-    const req = tx.objectStore(SW_STORE).getAll();
+    const tx = db.transaction('pending_expenses', 'readonly');
+    const req = tx.objectStore('pending_expenses').getAll();
     req.onsuccess = () => resolve(req.result);
     req.onerror = e => reject(e.target.error);
   });
@@ -121,8 +129,8 @@ async function swFlushExpenses() {
         }),
       });
       if (res.ok || res.status === 400) {
-        const tx = db.transaction(SW_STORE, 'readwrite');
-        tx.objectStore(SW_STORE).delete(item.id);
+        const tx = db.transaction('pending_expenses', 'readwrite');
+        tx.objectStore('pending_expenses').delete(item.id);
         await new Promise(r => { tx.oncomplete = r; });
       }
     } catch {
@@ -132,4 +140,38 @@ async function swFlushExpenses() {
 
   const clients = await self.clients.matchAll({ type: 'window' });
   clients.forEach(c => c.postMessage({ type: 'queue-updated' }));
+}
+
+async function swFlushJournals() {
+  const db = await swOpenDb();
+  const items = await new Promise((resolve, reject) => {
+    const tx = db.transaction('pending_journals', 'readonly');
+    const req = tx.objectStore('pending_journals').getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  });
+
+  for (const item of items) {
+    try {
+      const res = await fetch('/api/journal/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': item.csrfToken || '',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ day_pk: item.dayPk, text: item.text }),
+      });
+      if (res.ok || res.status === 400) {
+        const tx = db.transaction('pending_journals', 'readwrite');
+        tx.objectStore('pending_journals').delete(item.id);
+        await new Promise(r => { tx.oncomplete = r; });
+      }
+    } catch {
+      break;
+    }
+  }
+
+  const clients = await self.clients.matchAll({ type: 'window' });
+  clients.forEach(c => c.postMessage({ type: 'journal-queue-updated' }));
 }

@@ -100,7 +100,7 @@
       <div class="card h-100">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0"><i class="bi bi-journal-text me-2"></i>Trip Notes</h5>
-          <a href="{% url 'vacation_edit' vacation.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+          <a href="{% url 'vacation_edit' vacation.pk %}" class="btn btn-sm btn-outline-secondary no-print">Edit</a>
         </div>
         <div class="card-body">
           {% if vacation.notes %}
@@ -126,18 +126,12 @@
     {% if days %}
     {% for day in days %}
     <div class="card mb-3 day-card">
-      <div class="card-header d-flex align-items-center justify-content-between">
+      <div class="card-header">
         <a href="{% url 'day_edit' day.pk %}" class="text-decoration-none text-body no-print" style="cursor:pointer;">
           <div><strong>{{ day.date|date:"l, M j" }}</strong></div>
           {% if day.lodging %}
           <div class="text-muted small">{{ day.lodging }}</div>
           {% endif %}
-        </a>
-        <a href="{% url 'day_journal' day.pk %}" class="btn btn-sm btn-outline-secondary no-print">
-          <i class="bi bi-journal-richtext me-1"></i>Journal
-          {% with total=day.journal_entries.count|add:day.photos.count %}
-          {% if total %}<span class="badge bg-secondary ms-1">{{ total }}</span>{% endif %}
-          {% endwith %}
         </a>
       </div>
       <div class="card-body">
@@ -185,6 +179,14 @@
         </p>
         {% endif %}
 
+      </div>
+      <div class="card-footer p-0 no-print">
+        <a href="{% url 'day_journal' day.pk %}" class="btn btn-outline-secondary w-100 rounded-0 rounded-bottom border-0">
+          <i class="bi bi-journal-richtext me-1"></i>Journal
+          {% with total=day.journal_entries.count|add:day.photos.count %}
+          {% if total %}<span class="badge bg-secondary ms-1">{{ total }}</span>{% endif %}
+          {% endwith %}
+        </a>
       </div>
     </div>
     {% endfor %}

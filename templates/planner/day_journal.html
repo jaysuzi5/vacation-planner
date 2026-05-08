@@ -38,8 +38,13 @@
           <h5 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Journal</h5>
         </div>
         <div class="card-body">
+          <div id="offline-journal-banner" class="alert alert-warning py-2 mb-3 d-flex align-items-center gap-2" style="display:none!important;">
+            <i class="bi bi-wifi-off"></i>
+            <span>Offline — entries will sync when reconnected.</span>
+          </div>
+
           <!-- Add entry -->
-          <form method="post" class="mb-4">
+          <form id="journal-form" method="post" class="mb-4">
             {% csrf_token %}
             <input type="hidden" name="action" value="journal">
             <textarea name="text" class="form-control mb-2" rows="4"
@@ -48,6 +53,9 @@
               <i class="bi bi-plus-circle me-1"></i>Add Entry
             </button>
           </form>
+
+          <!-- Pending offline entries -->
+          <div id="pending-journal-entries" class="d-flex flex-column gap-3 mb-3"></div>
 
           <!-- Entry list -->
           {% if journal_entries %}
@@ -70,7 +78,7 @@
             {% endfor %}
           </div>
           {% else %}
-          <p class="text-muted fst-italic mb-0">No entries yet. Add one above.</p>
+          <p id="no-entries-msg" class="text-muted fst-italic mb-0">No entries yet. Add one above.</p>
           {% endif %}
         </div>
       </div>
@@ -130,4 +138,148 @@
   </div><!-- /row -->
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const DAY_PK = {{ day.pk }};
+  const DB_NAME = 'vp-offline';
+  const DB_VERSION = 2;
+  const STORE = 'pending_journals';
+
+  function openDb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('pending_expenses')) {
+          db.createObjectStore('pending_expenses', { keyPath: 'id', autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+        }
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = e => reject(e.target.error);
+    });
+  }
+
+  function getCsrf() {
+    const c = document.cookie.split(';').map(s => s.trim()).find(s => s.startsWith('csrftoken='));
+    return c ? c.split('=')[1] : '';
+  }
+
+  async function queueJournal(text) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).add({ dayPk: DAY_PK, text, csrfToken: getCsrf(), queuedAt: Date.now() });
+      tx.oncomplete = resolve;
+      tx.onerror = e => reject(e.target.error);
+    });
+  }
+
+  async function getPendingForDay() {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => resolve(req.result.filter(e => e.dayPk === DAY_PK));
+      req.onerror = e => reject(e.target.error);
+    });
+  }
+
+  async function flushJournals() {
+    if (!navigator.onLine) return;
+    const db = await openDb();
+    const items = await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = e => reject(e.target.error);
+    });
+
+    let synced = 0;
+    for (const item of items) {
+      try {
+        const res = await fetch('/api/journal/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': item.csrfToken || getCsrf() },
+          credentials: 'include',
+          body: JSON.stringify({ day_pk: item.dayPk, text: item.text }),
+        });
+        if (res.ok || res.status === 400) {
+          const tx = db.transaction(STORE, 'readwrite');
+          tx.objectStore(STORE).delete(item.id);
+          await new Promise(r => { tx.oncomplete = r; });
+          if (res.ok) synced++;
+        }
+      } catch { break; }
+    }
+
+    if (synced > 0) location.reload();
+  }
+
+  function escape(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  async function refreshPending() {
+    const items = await getPendingForDay();
+    const container = document.getElementById('pending-journal-entries');
+    if (!container) return;
+    const noMsg = document.getElementById('no-entries-msg');
+    if (items.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+    if (noMsg) noMsg.style.display = 'none';
+    container.innerHTML = items.map(item => {
+      const t = new Date(item.queuedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      return `<div class="border rounded p-3 border-warning bg-warning bg-opacity-10">
+        <p class="text-muted small mb-2"><i class="bi bi-clock me-1"></i>${t} <span class="badge bg-warning text-dark ms-1">pending sync</span></p>
+        <p class="mb-0" style="white-space:pre-wrap;">${escape(item.text)}</p>
+      </div>`;
+    }).join('');
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const banner = document.getElementById('offline-journal-banner');
+
+    function updateOfflineUI() {
+      if (banner) banner.style.setProperty('display', navigator.onLine ? 'none' : 'flex', 'important');
+    }
+
+    window.addEventListener('online', function () { updateOfflineUI(); flushJournals(); });
+    window.addEventListener('offline', updateOfflineUI);
+    updateOfflineUI();
+    refreshPending();
+
+    if (navigator.onLine) flushJournals();
+
+    const form = document.getElementById('journal-form');
+    if (!form) return;
+    form.addEventListener('submit', async function (e) {
+      if (navigator.onLine) return;
+      e.preventDefault();
+      const ta = form.querySelector('textarea[name="text"]');
+      const text = ta.value.trim();
+      if (!text) return;
+      await queueJournal(text);
+      ta.value = '';
+      await refreshPending();
+      if (window.VP && window.VP.showToast) {
+        window.VP.showToast('Saved offline — will sync when reconnected.', 'warning');
+      }
+    });
+  });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data && e.data.type === 'journal-queue-updated') refreshPending();
+    });
+  }
+})();
+</script>
 {% endblock %}

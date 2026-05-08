@@ -2,14 +2,20 @@
   'use strict';
 
   const DB_NAME = 'vp-offline';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   const STORE = 'pending_expenses';
 
   function openDb() {
     return new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = e => {
-        e.target.result.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('pending_expenses')) {
+          db.createObjectStore('pending_expenses', { keyPath: 'id', autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains('pending_journals')) {
+          db.createObjectStore('pending_journals', { keyPath: 'id', autoIncrement: true });
+        }
       };
       req.onsuccess = e => resolve(e.target.result);
       req.onerror = e => reject(e.target.error);

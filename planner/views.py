@@ -530,6 +530,22 @@ class ExpenseCreateApiView(LoginRequiredMixin, View):
 
 # ── Journal & Photos ──────────────────────────────────────────────────────────
 
+class JournalEntryApiView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        try:
+            data = _json.loads(request.body)
+            day = Day.objects.select_related('vacation').get(pk=int(data['day_pk']))
+            if not day.vacation.can_access(request.user):
+                return JsonResponse({'error': 'forbidden'}, status=403)
+            text = data.get('text', '').strip()
+            if not text:
+                return JsonResponse({'error': 'text required'}, status=400)
+            entry = JournalEntry.objects.create(day=day, text=text)
+            return JsonResponse({'id': entry.pk, 'status': 'ok'})
+        except (KeyError, ValueError, Day.DoesNotExist) as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+
 class DayJournalView(LoginRequiredMixin, View):
     def _get_day(self, request, pk):
         day = get_object_or_404(Day.objects.select_related('vacation'), pk=pk)

@@ -33,6 +33,7 @@ urlpatterns = [
 
     # Offline sync API
     path('api/expenses/', views.ExpenseCreateApiView.as_view(), name='api_expense_create'),
+    path('api/journal/', views.JournalEntryApiView.as_view(), name='api_journal_create'),
 
     # Sharing
     path('vacations/<int:pk>/share/', views.ShareVacationView.as_view(), name='vacation_share'),
