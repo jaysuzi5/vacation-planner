@@ -124,21 +124,15 @@
     {% for day in days %}
     <div class="card mb-3 day-card">
       <div class="card-header d-flex align-items-center justify-content-between">
-        <div>
+        <a href="{% url 'day_edit' day.pk %}" class="text-decoration-none text-body no-print" style="cursor:pointer;">
           <div><strong>{{ day.date|date:"l, M j" }}</strong></div>
           {% if day.lodging %}
           <div class="text-muted small">{{ day.lodging }}</div>
           {% endif %}
-        </div>
+        </a>
         <div class="d-flex gap-2 no-print">
           <a href="{% url 'expense_create' day.pk %}" class="btn btn-sm btn-outline-primary">
             <i class="bi bi-plus me-1"></i>Add Expense
-          </a>
-          <a href="{% url 'day_edit' day.pk %}" class="btn btn-sm btn-outline-secondary">
-            <i class="bi bi-pencil"></i>
-          </a>
-          <a href="{% url 'day_delete' day.pk %}" class="btn btn-sm btn-outline-danger">
-            <i class="bi bi-trash"></i>
           </a>
         </div>
       </div>
@@ -159,25 +153,16 @@
               <th>Description</th>
               <th>Category</th>
               <th class="text-end">Amount</th>
-              <th class="no-print"></th>
             </tr>
           </thead>
           <tbody>
             {% for expense in day.expenses.all %}
-            <tr>
+            <tr style="cursor:pointer;" onclick="location.href='{% url 'expense_edit' expense.pk %}'">
               <td>{{ expense.description }}{% if expense.notes %}<br><span class="text-muted small fst-italic">{{ expense.notes }}</span>{% endif %}</td>
               <td>
                 <span class="badge bg-light text-dark">{{ expense.get_category_display }}</span>
               </td>
               <td class="text-end">${{ expense.amount|floatformat:2 }}</td>
-              <td class="text-end no-print">
-                <a href="{% url 'expense_edit' expense.pk %}" class="btn btn-xs btn-outline-secondary me-1">
-                  <i class="bi bi-pencil"></i>
-                </a>
-                <a href="{% url 'expense_delete' expense.pk %}" class="btn btn-xs btn-outline-danger">
-                  <i class="bi bi-trash"></i>
-                </a>
-              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -185,7 +170,6 @@
             <tr>
               <td colspan="2" class="fw-bold">Day Total</td>
               <td class="text-end fw-bold">${{ day.day_total|floatformat:2 }}</td>
-              <td></td>
             </tr>
           </tfoot>
         </table>
