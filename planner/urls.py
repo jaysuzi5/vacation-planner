@@ -29,4 +29,7 @@ urlpatterns = [
 
     # Savings
     path('savings/update/', views.UpdateSavingsView.as_view(), name='savings_update'),
+
+    # Family
+    path('family/', views.FamilySettingsView.as_view(), name='family_settings'),
 ]

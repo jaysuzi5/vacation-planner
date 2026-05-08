@@ -57,7 +57,11 @@ class Vacation(models.Model):
         return reverse('vacation_detail', kwargs={'pk': self.pk})
 
     def can_access(self, user):
-        return user == self.user or self.shared_with.filter(pk=user.pk).exists()
+        return (
+            user == self.user
+            or self.shared_with.filter(pk=user.pk).exists()
+            or FamilyLink.objects.filter(user=user, member=self.user).exists()
+        )
 
     @cached_property
     def expense_totals(self):
@@ -191,3 +195,15 @@ class VacationSavings(models.Model):
 
     def __str__(self):
         return f"{self.user.email} — ${self.amount}"
+
+
+class FamilyLink(models.Model):
+    """Symmetric: if A links to B, B also links to A. Created/removed together."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='family_links')
+    member = models.ForeignKey(User, on_delete=models.CASCADE, related_name='family_member_links')
+
+    class Meta:
+        unique_together = ['user', 'member']
+
+    def __str__(self):
+        return f"{self.user.email} ↔ {self.member.email}"

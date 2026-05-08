@@ -219,8 +219,13 @@
         <div class="row g-3 mb-4">
           <div class="col-sm-3">
             <div class="p-3 rounded-3 text-center" style="background:rgba(25,135,84,.08); border:1px solid rgba(25,135,84,.2);">
-              <div class="small text-muted mb-1">Currently Saved</div>
+              <div class="small text-muted mb-1">Currently Saved{% if family_members %} <span class="badge bg-info" style="font-size:0.6rem;">Family</span>{% endif %}</div>
               <div class="fs-3 fw-bold text-success">${{ savings_amount|floatformat:0 }}</div>
+              {% if family_members %}
+              <div class="small text-muted mt-1">
+                You: ${{ my_savings_amount|floatformat:0 }}{% for u, amt, _ in family_savings_breakdown %} · ${{ amt|floatformat:0 }}{% endfor %}
+              </div>
+              {% endif %}
               {% if savings_leftover > 0 %}
               <div class="small text-success mt-1"><i class="bi bi-check-circle-fill me-1"></i>${{ savings_leftover|floatformat:0 }} beyond all trips</div>
               {% endif %}
@@ -228,7 +233,7 @@
           </div>
           <div class="col-sm-3">
             <div class="p-3 rounded-3 text-center bg-body-tertiary border">
-              <div class="small text-muted mb-1">Saving per Month</div>
+              <div class="small text-muted mb-1">Saving per Month{% if family_members %} <span class="badge bg-info" style="font-size:0.6rem;">Family</span>{% endif %}</div>
               <div class="fs-4 fw-bold">${{ monthly_contribution|floatformat:0 }}/mo</div>
             </div>
           </div>
@@ -256,8 +261,13 @@
         <div class="row g-3 mb-4">
           <div class="col-sm-4">
             <div class="p-3 rounded-3 text-center" style="background:rgba(25,135,84,.08); border:1px solid rgba(25,135,84,.2);">
-              <div class="small text-muted mb-1">Currently Saved</div>
+              <div class="small text-muted mb-1">Currently Saved{% if family_members %} <span class="badge bg-info" style="font-size:0.6rem;">Family</span>{% endif %}</div>
               <div class="fs-3 fw-bold text-success">${{ savings_amount|floatformat:0 }}</div>
+              {% if family_members %}
+              <div class="small text-muted mt-1">
+                You: ${{ my_savings_amount|floatformat:0 }}{% for u, amt, _ in family_savings_breakdown %} · ${{ amt|floatformat:0 }}{% endfor %}
+              </div>
+              {% endif %}
               {% if savings_leftover > 0 %}
               <div class="small text-success mt-1"><i class="bi bi-check-circle-fill me-1"></i>${{ savings_leftover|floatformat:0 }} beyond all trips</div>
               {% endif %}
@@ -358,6 +368,50 @@
     </div>
   </div>
 
+  <!-- ── Family Account ───────────────────────────────────────────────────── -->
+  <h4 class="mb-3"><i class="bi bi-people-fill text-info me-2"></i>Family Account</h4>
+  <div class="card mb-5">
+    <div class="card-body">
+      {% if messages %}
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible py-2 mb-3" role="alert">
+        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if family_members %}
+      <p class="text-muted small mb-3">All trips and savings are pooled with:</p>
+      <ul class="list-unstyled mb-3">
+        {% for member in family_members %}
+        <li class="d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-person-heart text-info fs-5"></i>
+          <span>{{ member.email }}</span>
+          {% for u, amt, monthly in family_savings_breakdown %}{% if u == member %}
+          <span class="text-muted small ms-1">· ${{ amt|floatformat:0 }} saved{% if monthly %}, ${{ monthly|floatformat:0 }}/mo{% endif %}</span>
+          {% endif %}{% endfor %}
+          <form method="post" action="{% url 'family_settings' %}" class="ms-auto mb-0">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="remove">
+            <input type="hidden" name="member_id" value="{{ member.pk }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Remove family member"><i class="bi bi-x-lg"></i></button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-muted small mb-3">Add a family member to automatically share all trips and pool savings for the financial overview.</p>
+      {% endif %}
+
+      <form method="post" action="{% url 'family_settings' %}" class="d-flex gap-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add">
+        <input type="email" class="form-control form-control-sm" name="email" placeholder="Email address" required>
+        <button type="submit" class="btn btn-sm btn-primary text-nowrap"><i class="bi bi-person-plus me-1"></i>Add Family Member</button>
+      </form>
+    </div>
+  </div>
+
   {% if not booked_vacations and not review_vacations and not taken_vacations %}
   <div class="empty-state text-center py-5">
     <i class="bi bi-map display-1 text-muted"></i>
@@ -382,26 +436,31 @@
       <form method="post" action="{% url 'savings_update' %}">
         {% csrf_token %}
         <div class="modal-body">
+          {% if family_members %}
+          <div class="alert alert-info py-2 small mb-3">
+            <i class="bi bi-people-fill me-1"></i>Enter <strong>your</strong> savings only. Family totals are pooled automatically.
+          </div>
+          {% endif %}
           <div class="mb-3">
             <label class="form-label fw-medium">Amount currently saved</label>
             <div class="input-group">
               <span class="input-group-text">$</span>
               <input type="number" class="form-control" name="amount"
-                     value="{{ savings_amount|floatformat:2 }}" min="0" step="0.01"
+                     value="{{ my_savings_amount|floatformat:2 }}" min="0" step="0.01"
                      placeholder="0.00">
             </div>
-            <div class="form-text">Total set aside for upcoming trips. Applied to earliest trips first.</div>
+            <div class="form-text">Your portion set aside for upcoming trips.</div>
           </div>
           <div>
             <label class="form-label fw-medium">Monthly savings contribution</label>
             <div class="input-group">
               <span class="input-group-text">$</span>
               <input type="number" class="form-control" name="monthly_contribution"
-                     value="{% if monthly_contribution_set %}{{ monthly_contribution|floatformat:2 }}{% endif %}"
+                     value="{% if my_monthly_contribution_set %}{{ my_monthly_contribution|floatformat:2 }}{% endif %}"
                      min="0" step="0.01" placeholder="0.00">
               <span class="input-group-text">/month</span>
             </div>
-            <div class="form-text">How much you save toward vacations each month.</div>
+            <div class="form-text">Your monthly contribution toward vacations.</div>
           </div>
         </div>
         <div class="modal-footer">

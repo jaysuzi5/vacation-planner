@@ -15,7 +15,7 @@ from django.views import View
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
 )
-from .models import Vacation, Day, Expense, VacationSavings
+from .models import Vacation, Day, Expense, VacationSavings, FamilyLink
 from .forms import VacationForm, DayForm, ExpenseForm
 
 
@@ -40,14 +40,23 @@ class DashboardView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         user = self.request.user
-        return Vacation.objects.filter(
-            Q(user=user) | Q(shared_with=user)
-        ).distinct()
+        family_pks = list(FamilyLink.objects.filter(user=user).values_list('member', flat=True))
+        q = Q(user=user) | Q(shared_with=user)
+        if family_pks:
+            q |= Q(user__in=family_pks)
+        return Vacation.objects.filter(q).distinct()
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         user = self.request.user
+
+        # Family members — computed once, reused for trip queryset and savings
+        family_pks = list(FamilyLink.objects.filter(user=user).values_list('member', flat=True))
+        ctx['family_members'] = list(User.objects.filter(pk__in=family_pks)) if family_pks else []
+
         base = Q(user=user) | Q(shared_with=user)
+        if family_pks:
+            base |= Q(user__in=family_pks)
         booked = list(
             Vacation.objects.filter(base, status=Vacation.STATUS_BOOKED)
             .distinct().order_by('start_date')
@@ -85,7 +94,15 @@ class DashboardView(LoginRequiredMixin, ListView):
         savings_obj, _ = VacationSavings.objects.get_or_create(
             user=user, defaults={'amount': Decimal('0.00')}
         )
-        saved_amount = savings_obj.amount
+
+        # Pool savings across family members
+        family_savings_qs = (
+            VacationSavings.objects.filter(user__in=family_pks).select_related('user')
+            if family_pks else VacationSavings.objects.none()
+        )
+        family_savings_list = list(family_savings_qs)
+        ctx['family_savings_breakdown'] = [(s.user, s.amount, s.monthly_contribution) for s in family_savings_list]
+        saved_amount = savings_obj.amount + sum(s.amount for s in family_savings_list)
 
         upcoming = sorted(
             booked + review,
@@ -135,8 +152,14 @@ class DashboardView(LoginRequiredMixin, ListView):
             r['still_needed'] for r in financial_rows if r['vacation'].status == Vacation.STATUS_REVIEW
         )
 
-        # Monthly contribution & balance projection
-        monthly_contribution = savings_obj.monthly_contribution
+        # Monthly contribution — pool own + family
+        ctx['my_savings_amount'] = savings_obj.amount
+        ctx['my_monthly_contribution'] = savings_obj.monthly_contribution
+        ctx['my_monthly_contribution_set'] = savings_obj.monthly_contribution is not None
+
+        all_monthly = [savings_obj.monthly_contribution] + [s.monthly_contribution for s in family_savings_list]
+        set_monthly = [m for m in all_monthly if m is not None]
+        monthly_contribution = sum(set_monthly) if set_monthly else None
         ctx['monthly_contribution'] = monthly_contribution
         ctx['monthly_contribution_set'] = monthly_contribution is not None
 
@@ -431,6 +454,32 @@ class ShareVacationView(LoginRequiredMixin, View):
             user_id = request.POST.get('user_id')
             vacation.shared_with.remove(user_id)
         return redirect(vacation.get_absolute_url())
+
+
+# ── Family ────────────────────────────────────────────────────────────────────
+
+class FamilySettingsView(LoginRequiredMixin, View):
+    def post(self, request):
+        action = request.POST.get('action')
+        if action == 'add':
+            email = request.POST.get('email', '').strip()
+            try:
+                target = User.objects.get(email__iexact=email)
+                if target == request.user:
+                    messages.warning(request, "Can't add yourself as a family member.")
+                elif FamilyLink.objects.filter(user=request.user, member=target).exists():
+                    messages.info(request, f"{target.email} is already a family member.")
+                else:
+                    FamilyLink.objects.create(user=request.user, member=target)
+                    FamilyLink.objects.get_or_create(user=target, member=request.user)
+                    messages.success(request, f"Added {target.email} as a family member.")
+            except User.DoesNotExist:
+                messages.error(request, f"No account found for {email}.")
+        elif action == 'remove':
+            member_id = request.POST.get('member_id')
+            FamilyLink.objects.filter(user=request.user, member_id=member_id).delete()
+            FamilyLink.objects.filter(user_id=member_id, member=request.user).delete()
+        return redirect(reverse('dashboard'))
 
 
 # ── Savings ───────────────────────────────────────────────────────────────────
