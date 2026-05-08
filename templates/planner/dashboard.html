@@ -30,8 +30,8 @@
           </div>
           {% if vacation.start_date %}
           <p class="text-muted small mb-3">
-            <i class="bi bi-calendar3 me-1"></i>{{ vacation.start_date|date:"Y-m-d" }}
-            {% if vacation.end_date %} &ndash; {{ vacation.end_date|date:"Y-m-d" }}{% endif %}
+            <i class="bi bi-calendar3 me-1"></i>{{ vacation.start_date|date:"l, F j, Y" }}
+            {% if vacation.end_date %} &ndash; {{ vacation.end_date|date:"l, F j, Y" }}{% endif %}
             {% if vacation.duration_days %}({{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }}){% endif %}
           </p>
           {% endif %}
@@ -79,7 +79,7 @@
         <tbody>
           {% for vacation in review_vacations %}
           <tr>
-            <td class="text-muted small">
+            <td class="text-muted small text-nowrap">
               {% if vacation.start_date %}{{ vacation.start_date|date:"Y-m-d" }}{% else %}<span class="fst-italic">TBD</span>{% endif %}
             </td>
             <td>
@@ -131,7 +131,7 @@
         <tbody>
           {% for vacation in taken_vacations %}
           <tr>
-            <td class="text-muted small">
+            <td class="text-muted small text-nowrap">
               {% if vacation.start_date %}{{ vacation.start_date|date:"Y-m-d" }}{% endif %}
             </td>
             <td>
