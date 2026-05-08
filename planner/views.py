@@ -3,11 +3,13 @@ import json as _json
 from collections import defaultdict
 from datetime import date as _date
 from decimal import Decimal, InvalidOperation
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
-from django.db.models import F
+from django.db.models import F, Q
 from django.http import JsonResponse
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import (
@@ -37,22 +39,26 @@ class DashboardView(LoginRequiredMixin, ListView):
     context_object_name = 'vacations'
 
     def get_queryset(self):
-        return Vacation.objects.filter(user=self.request.user)
+        user = self.request.user
+        return Vacation.objects.filter(
+            Q(user=user) | Q(shared_with=user)
+        ).distinct()
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         user = self.request.user
+        base = Q(user=user) | Q(shared_with=user)
         booked = list(
-            Vacation.objects.filter(user=user, status=Vacation.STATUS_BOOKED)
-            .order_by('start_date')
+            Vacation.objects.filter(base, status=Vacation.STATUS_BOOKED)
+            .distinct().order_by('start_date')
         )
         review = list(
-            Vacation.objects.filter(user=user, status=Vacation.STATUS_REVIEW)
-            .order_by(F('start_date').asc(nulls_last=True))
+            Vacation.objects.filter(base, status=Vacation.STATUS_REVIEW)
+            .distinct().order_by(F('start_date').asc(nulls_last=True))
         )
         taken = list(
-            Vacation.objects.filter(user=user, status=Vacation.STATUS_TAKEN)
-            .order_by('-start_date')
+            Vacation.objects.filter(base, status=Vacation.STATUS_TAKEN)
+            .distinct().order_by('-start_date')
         )
         ctx['booked_vacations'] = booked
         ctx['review_vacations'] = review
@@ -197,7 +203,7 @@ class VacationDetailView(LoginRequiredMixin, DetailView):
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        if obj.user != self.request.user:
+        if not obj.can_access(self.request.user):
             raise PermissionDenied
         return obj
 
@@ -207,6 +213,8 @@ class VacationDetailView(LoginRequiredMixin, DetailView):
         days = vacation.days.prefetch_related('expenses').all()
         ctx['days'] = days
         ctx['budget_rows'] = vacation.budget_rows()
+        ctx['shared_users'] = list(vacation.shared_with.all())
+        ctx['is_owner'] = vacation.user == self.request.user
 
         by_cat = defaultdict(list)
         for day in days:
@@ -244,7 +252,7 @@ class VacationEditView(LoginRequiredMixin, UpdateView):
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        if obj.user != self.request.user:
+        if not obj.can_access(self.request.user):
             raise PermissionDenied
         return obj
 
@@ -283,7 +291,7 @@ class DayCreateView(LoginRequiredMixin, CreateView):
     def _get_vacation(self):
         if not hasattr(self, '_vacation'):
             self._vacation = Vacation.objects.get(pk=self.kwargs['vacation_pk'])
-            if self._vacation.user != self.request.user:
+            if not self._vacation.can_access(self.request.user):
                 raise PermissionDenied
         return self._vacation
 
@@ -306,7 +314,7 @@ class DayEditView(LoginRequiredMixin, UpdateView):
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        if obj.vacation.user != self.request.user:
+        if not obj.vacation.can_access(self.request.user):
             raise PermissionDenied
         return obj
 
@@ -324,7 +332,7 @@ class DayDeleteView(LoginRequiredMixin, DeleteView):
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        if obj.vacation.user != self.request.user:
+        if not obj.vacation.can_access(self.request.user):
             raise PermissionDenied
         return obj
 
@@ -348,7 +356,7 @@ class ExpenseCreateView(LoginRequiredMixin, CreateView):
     def _get_day(self):
         if not hasattr(self, '_day'):
             self._day = Day.objects.select_related('vacation').get(pk=self.kwargs['day_pk'])
-            if self._day.vacation.user != self.request.user:
+            if not self._day.vacation.can_access(self.request.user):
                 raise PermissionDenied
         return self._day
 
@@ -371,7 +379,7 @@ class ExpenseEditView(LoginRequiredMixin, UpdateView):
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        if obj.day.vacation.user != self.request.user:
+        if not obj.day.vacation.can_access(self.request.user):
             raise PermissionDenied
         return obj
 
@@ -389,7 +397,7 @@ class ExpenseDeleteView(LoginRequiredMixin, DeleteView):
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
-        if obj.day.vacation.user != self.request.user:
+        if not obj.day.vacation.can_access(self.request.user):
             raise PermissionDenied
         return obj
 
@@ -401,6 +409,28 @@ class ExpenseDeleteView(LoginRequiredMixin, DeleteView):
         ctx['item_name'] = f'Expense — {self.object.description}'
         ctx['cancel_url'] = self.object.day.vacation.get_absolute_url()
         return ctx
+
+
+# ── Sharing ───────────────────────────────────────────────────────────────────
+
+class ShareVacationView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        vacation = get_object_or_404(Vacation, pk=pk, user=request.user)
+        action = request.POST.get('action')
+        if action == 'add':
+            email = request.POST.get('email', '').strip()
+            try:
+                target = User.objects.get(email__iexact=email)
+                if target == request.user:
+                    messages.warning(request, "Can't share a trip with yourself.")
+                else:
+                    vacation.shared_with.add(target)
+            except User.DoesNotExist:
+                messages.error(request, f"No account found for {email}.")
+        elif action == 'remove':
+            user_id = request.POST.get('user_id')
+            vacation.shared_with.remove(user_id)
+        return redirect(vacation.get_absolute_url())
 
 
 # ── Savings ───────────────────────────────────────────────────────────────────
@@ -432,7 +462,7 @@ class ExpenseCreateApiView(LoginRequiredMixin, View):
         try:
             data = _json.loads(request.body)
             day = Day.objects.select_related('vacation').get(pk=int(data['day_pk']))
-            if day.vacation.user != request.user:
+            if not day.vacation.can_access(request.user):
                 return JsonResponse({'error': 'forbidden'}, status=403)
             form = ExpenseForm({
                 'description': data.get('description', ''),

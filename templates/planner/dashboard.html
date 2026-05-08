@@ -27,6 +27,7 @@
               </a>
             </h5>
             <span class="badge bg-primary ms-2 flex-shrink-0">Booked</span>
+            {% if vacation.user != request.user %}<span class="badge bg-info ms-1 flex-shrink-0">Shared</span>{% endif %}
           </div>
           {% if vacation.start_date %}
           <p class="text-muted small mb-1">
@@ -92,6 +93,7 @@
               <a href="{{ vacation.get_absolute_url }}" class="fw-medium text-decoration-none">
                 {{ vacation.name }}
               </a>
+              {% if vacation.user != request.user %}<span class="badge bg-info ms-1 small">Shared</span>{% endif %}
             </td>
             <td class="text-end text-muted small">
               {% if vacation.duration_days %}{{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }}{% else %}&mdash;{% endif %}
@@ -144,6 +146,7 @@
               <a href="{{ vacation.get_absolute_url }}" class="fw-medium text-decoration-none">
                 {{ vacation.name }}
               </a>
+              {% if vacation.user != request.user %}<span class="badge bg-info ms-1 small">Shared</span>{% endif %}
             </td>
             <td class="text-end text-muted small">
               {% if vacation.duration_days %}{{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }}{% else %}&mdash;{% endif %}

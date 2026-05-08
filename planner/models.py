@@ -17,6 +17,7 @@ class Vacation(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vacations')
+    shared_with = models.ManyToManyField(User, blank=True, related_name='shared_vacations')
     name = models.CharField(max_length=200)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
@@ -54,6 +55,9 @@ class Vacation(models.Model):
 
     def get_absolute_url(self):
         return reverse('vacation_detail', kwargs={'pk': self.pk})
+
+    def can_access(self, user):
+        return user == self.user or self.shared_with.filter(pk=user.pk).exists()
 
     @cached_property
     def expense_totals(self):
