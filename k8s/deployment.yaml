@@ -97,6 +97,21 @@ spec:
               value: "vacation-planner"
             - name: OTLP_ENDPOINT
               value: "http://otel-collector-collector.monitoring.svc.cluster.local:4318"
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: vacation-planner-s3
+                  key: aws_access_key_id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: vacation-planner-s3
+                  key: aws_secret_access_key
+            - name: AWS_STORAGE_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: vacation-planner-s3
+                  key: aws_storage_bucket_name
 
 ---
 apiVersion: v1

@@ -149,6 +149,37 @@ class Day(models.Model):
         )['total'] or Decimal('0.00')
 
 
+class JournalEntry(models.Model):
+    day = models.ForeignKey(Day, on_delete=models.CASCADE, related_name='journal_entries')
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.day} — {self.created_at:%H:%M}"
+
+    def get_absolute_url(self):
+        return reverse('day_journal', kwargs={'pk': self.day.pk})
+
+
+class DayPhoto(models.Model):
+    day = models.ForeignKey(Day, on_delete=models.CASCADE, related_name='photos')
+    image = models.ImageField(upload_to='journal/%Y/%m/')
+    caption = models.CharField(max_length=300, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"{self.day} — photo"
+
+    def get_absolute_url(self):
+        return reverse('day_journal', kwargs={'pk': self.day.pk})
+
+
 class Expense(models.Model):
     CATEGORY_AIRFARE = 'airfare'
     CATEGORY_LODGING = 'lodging'

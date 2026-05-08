@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Trip Recap — {{ vacation.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .recap-photo {
+    width: 100%;
+    height: 240px;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .recap-photo:hover { opacity: 0.88; }
+
+  .entry-timestamp { font-size: 0.78rem; }
+
+  @media print {
+    .day-section { break-inside: avoid; }
+    .recap-photo {
+      height: 200px !important;
+      cursor: default;
+    }
+    .card { border: 1px solid #dee2e6 !important; }
+    a { color: inherit !important; text-decoration: none !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Page actions (no-print) -->
+  <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <a href="{% url 'vacation_detail' vacation.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Back to Trip
+    </a>
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-printer me-1"></i>Print
+    </button>
+  </div>
+
+  <!-- Trip Header -->
+  <div class="mb-4 pb-3 border-bottom">
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <h1 class="h2 mb-0">{{ vacation.name }}</h1>
+      <span class="badge {{ vacation.status_badge_class }}">{{ vacation.get_status_display }}</span>
+    </div>
+    <p class="text-muted mb-0">
+      {% if vacation.start_date %}
+      <i class="bi bi-calendar3 me-1"></i>{{ vacation.start_date|date:"F j" }}
+      {% if vacation.end_date %}&ndash;{{ vacation.end_date|date:"F j, Y" }}{% endif %}
+      {% if vacation.duration_days %}&nbsp;&middot;&nbsp;{{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }}{% endif %}
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- Day-by-Day -->
+  {% if days %}
+  {% for day in days %}
+  {% with entries=day.journal_entries.all photos=day.photos.all %}
+  <div class="day-section mb-5">
+    <h4 class="border-bottom pb-2 mb-3">{{ day.date|date:"l, F j, Y" }}</h4>
+
+    {% if day.excursion %}
+    <p class="text-muted small mb-3"><i class="bi bi-signpost-2 me-1"></i><strong>Excursion:</strong> {{ day.excursion }}</p>
+    {% endif %}
+
+    <!-- Journal entries -->
+    {% if entries %}
+    <div class="card mb-3">
+      <div class="card-header py-2">
+        <strong class="small"><i class="bi bi-journal-text me-1"></i>Journal</strong>
+      </div>
+      <div class="card-body py-3">
+        {% for entry in entries %}
+        <div class="{% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+          <p class="entry-timestamp text-muted mb-1">{{ entry.created_at|date:"g:i A" }}</p>
+          <p class="mb-0" style="white-space:pre-wrap;">{{ entry.text }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Photos -->
+    {% if photos %}
+    <div class="row g-3">
+      {% for photo in photos %}
+      <div class="col-6 col-md-4">
+        <img src="{{ photo.image.url }}" alt="{{ photo.caption }}"
+          class="recap-photo lightbox-trigger"
+          data-src="{{ photo.image.url }}"
+          data-caption="{{ photo.caption }}">
+        {% if photo.caption %}
+        <p class="text-muted small mt-1 mb-0">{{ photo.caption }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not entries and not photos %}
+    <p class="text-muted fst-italic small">No journal entries or photos for this day.</p>
+    {% endif %}
+
+  </div>
+  {% endwith %}
+  {% endfor %}
+
+  {% else %}
+  <p class="text-muted fst-italic">No days in the itinerary yet.</p>
+  {% endif %}
+
+</div>
+
+<!-- Lightbox modal -->
+<div class="modal fade no-print" id="lightboxModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:90vw;">
+    <div class="modal-content bg-dark border-0">
+      <div class="modal-body p-2 text-center position-relative">
+        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-2"
+          data-bs-dismiss="modal"></button>
+        <img id="lightboxImg" src="" alt="" class="img-fluid" style="max-height:90vh;">
+        <p id="lightboxCaption" class="text-white-50 small mt-2 mb-0"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.lightbox-trigger').forEach(function (img) {
+  img.addEventListener('click', function () {
+    document.getElementById('lightboxImg').src = this.dataset.src;
+    document.getElementById('lightboxImg').alt = this.dataset.caption || '';
+    var cap = document.getElementById('lightboxCaption');
+    cap.textContent = this.dataset.caption || '';
+    cap.style.display = this.dataset.caption ? '' : 'none';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('lightboxModal')).show();
+  });
+});
+</script>
+{% endblock %}

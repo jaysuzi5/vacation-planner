@@ -15,6 +15,16 @@ urlpatterns = [
     path('vacations/<int:vacation_pk>/days/add/', views.DayCreateView.as_view(), name='day_create'),
     path('days/<int:pk>/edit/', views.DayEditView.as_view(), name='day_edit'),
     path('days/<int:pk>/delete/', views.DayDeleteView.as_view(), name='day_delete'),
+    path('days/<int:pk>/journal/', views.DayJournalView.as_view(), name='day_journal'),
+
+    # Photos
+    path('photos/<int:pk>/delete/', views.DayPhotoDeleteView.as_view(), name='photo_delete'),
+
+    # Journal entries
+    path('journal-entries/<int:pk>/delete/', views.JournalEntryDeleteView.as_view(), name='journal_entry_delete'),
+
+    # Trip recap
+    path('vacations/<int:pk>/recap/', views.VacationRecapView.as_view(), name='vacation_recap'),
 
     # Expenses
     path('days/<int:day_pk>/expenses/add/', views.ExpenseCreateView.as_view(), name='expense_create'),

@@ -79,10 +79,33 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+_aws_bucket = env('AWS_STORAGE_BUCKET_NAME', default='')
+
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+    'default': {
+        'BACKEND': (
+            'storages.backends.s3boto3.S3Boto3Storage'
+            if _aws_bucket
+            else 'django.core.files.storage.FileSystemStorage'
+        ),
+    },
+}
+
+if _aws_bucket:
+    AWS_ACCESS_KEY_ID = env('AWS_ACCESS_KEY_ID', default='')
+    AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY', default='')
+    AWS_STORAGE_BUCKET_NAME = _aws_bucket
+    AWS_S3_REGION_NAME = env('AWS_S3_REGION_NAME', default='us-east-1')
+    AWS_S3_FILE_OVERWRITE = True
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+    AWS_QUERYSTRING_AUTH = False
+    MEDIA_URL = f'https://{_aws_bucket}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

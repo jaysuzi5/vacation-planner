@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Journal — {{ day.date|date:"M j, Y" }} — {{ vacation.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  <!-- Header -->
+  <div class="mb-4">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb mb-1">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">My Trips</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'vacation_detail' vacation.pk %}">{{ vacation.name }}</a></li>
+        <li class="breadcrumb-item active">{{ day.date|date:"l, M j" }}</li>
+      </ol>
+    </nav>
+    <h1 class="h2 mb-0">
+      <i class="bi bi-journal-richtext me-2 text-primary"></i>{{ day.date|date:"l, M j, Y" }}
+    </h1>
+    {% if day.lodging %}
+    <p class="text-muted mb-0 small"><i class="bi bi-house me-1"></i>{{ day.lodging }}</p>
+    {% endif %}
+  </div>
+
+  {% if messages %}
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible py-2 mb-3" role="alert">
+    {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <div class="row g-4">
+
+    <!-- Journal Entries -->
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Journal</h5>
+        </div>
+        <div class="card-body">
+          <!-- Add entry -->
+          <form method="post" class="mb-4">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="journal">
+            <textarea name="text" class="form-control mb-2" rows="4"
+              placeholder="Add a thought…" style="resize:vertical;"></textarea>
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="bi bi-plus-circle me-1"></i>Add Entry
+            </button>
+          </form>
+
+          <!-- Entry list -->
+          {% if journal_entries %}
+          <div class="d-flex flex-column gap-3">
+            {% for entry in journal_entries %}
+            <div class="border rounded p-3 position-relative">
+              <p class="text-muted small mb-2">
+                <i class="bi bi-clock me-1"></i>{{ entry.created_at|date:"g:i A" }}
+              </p>
+              <p class="mb-0" style="white-space:pre-wrap;">{{ entry.text }}</p>
+              <form method="post" action="{% url 'journal_entry_delete' entry.pk %}"
+                onsubmit="return confirm('Delete this entry?');"
+                class="position-absolute top-0 end-0 m-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete entry">
+                  <i class="bi bi-x-lg" style="font-size:0.7rem;"></i>
+                </button>
+              </form>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted fst-italic mb-0">No entries yet. Add one above.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Photos -->
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="bi bi-images me-2"></i>Photos</h5>
+        </div>
+        <div class="card-body">
+          <!-- Upload -->
+          <form method="post" enctype="multipart/form-data" class="mb-4">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload">
+            <div class="input-group">
+              <input type="file" class="form-control" name="image" accept="image/*" required>
+              <input type="text" class="form-control" name="caption" placeholder="Caption (optional)" style="max-width:200px;">
+              <button type="submit" class="btn btn-outline-primary text-nowrap">
+                <i class="bi bi-cloud-upload me-1"></i>Upload
+              </button>
+            </div>
+          </form>
+
+          {% if photos %}
+          <div class="row g-3">
+            {% for photo in photos %}
+            <div class="col-6 col-md-4">
+              <div class="position-relative">
+                <a href="{{ photo.image.url }}" target="_blank" rel="noopener">
+                  <img src="{{ photo.image.url }}" alt="{{ photo.caption }}"
+                    class="img-fluid rounded" style="width:100%;height:160px;object-fit:cover;">
+                </a>
+                {% if photo.caption %}
+                <p class="text-muted small mt-1 mb-0">{{ photo.caption }}</p>
+                {% endif %}
+                <form method="post" action="{% url 'photo_delete' photo.pk %}"
+                  onsubmit="return confirm('Delete this photo?');"
+                  class="position-absolute top-0 end-0 m-1">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-danger py-0 px-1" title="Delete photo">
+                    <i class="bi bi-x-lg" style="font-size:0.7rem;"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted fst-italic mb-0">No photos yet. Upload one above.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /row -->
+
+</div>
+{% endblock %}

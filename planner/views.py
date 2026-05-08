@@ -9,13 +9,13 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db.models import F, Q
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
 )
-from .models import Vacation, Day, Expense, VacationSavings, FamilyLink
+from .models import Vacation, Day, Expense, JournalEntry, DayPhoto, VacationSavings, FamilyLink
 from .forms import VacationForm, DayForm, ExpenseForm
 
 
@@ -526,3 +526,84 @@ class ExpenseCreateApiView(LoginRequiredMixin, View):
             return JsonResponse({'errors': form.errors}, status=400)
         except (KeyError, ValueError, Day.DoesNotExist) as e:
             return JsonResponse({'error': str(e)}, status=400)
+
+
+# ── Journal & Photos ──────────────────────────────────────────────────────────
+
+class DayJournalView(LoginRequiredMixin, View):
+    def _get_day(self, request, pk):
+        day = get_object_or_404(Day.objects.select_related('vacation'), pk=pk)
+        if not day.vacation.can_access(request.user):
+            raise PermissionDenied
+        return day
+
+    def get(self, request, pk):
+        day = self._get_day(request, pk)
+        return render(request, 'planner/day_journal.html', {
+            'day': day,
+            'vacation': day.vacation,
+            'journal_entries': day.journal_entries.all(),
+            'photos': day.photos.all(),
+            'is_owner': day.vacation.user == request.user,
+        })
+
+    def post(self, request, pk):
+        day = self._get_day(request, pk)
+        action = request.POST.get('action')
+        if action == 'journal':
+            text = request.POST.get('text', '').strip()
+            if text:
+                JournalEntry.objects.create(day=day, text=text)
+                messages.success(request, 'Entry added.')
+            else:
+                messages.warning(request, 'Entry cannot be blank.')
+        elif action == 'upload':
+            img = request.FILES.get('image')
+            if img:
+                DayPhoto.objects.create(
+                    day=day,
+                    image=img,
+                    caption=request.POST.get('caption', ''),
+                )
+                messages.success(request, 'Photo added.')
+            else:
+                messages.warning(request, 'No file selected.')
+        return redirect('day_journal', pk=day.pk)
+
+
+class DayPhotoDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        photo = get_object_or_404(DayPhoto.objects.select_related('day__vacation'), pk=pk)
+        if not photo.day.vacation.can_access(request.user):
+            raise PermissionDenied
+        day_pk = photo.day.pk
+        photo.image.delete(save=False)
+        photo.delete()
+        messages.success(request, 'Photo deleted.')
+        return redirect('day_journal', pk=day_pk)
+
+
+class JournalEntryDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        entry = get_object_or_404(JournalEntry.objects.select_related('day__vacation'), pk=pk)
+        if not entry.day.vacation.can_access(request.user):
+            raise PermissionDenied
+        day_pk = entry.day.pk
+        entry.delete()
+        messages.success(request, 'Entry deleted.')
+        return redirect('day_journal', pk=day_pk)
+
+
+class VacationRecapView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        vacation = get_object_or_404(Vacation, pk=pk)
+        if not vacation.can_access(request.user):
+            raise PermissionDenied
+        days = vacation.days.prefetch_related(
+            'expenses', 'journal_entries', 'photos'
+        ).all()
+        return render(request, 'planner/vacation_recap.html', {
+            'vacation': vacation,
+            'days': days,
+            'budget_rows': vacation.budget_rows(),
+        })
