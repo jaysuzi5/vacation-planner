@@ -182,6 +182,7 @@ class Expense(models.Model):
 class VacationSavings(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='vacation_savings')
     amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    monthly_contribution = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):

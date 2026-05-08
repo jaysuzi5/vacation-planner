@@ -1,3 +1,4 @@
+import calendar as _cal
 import json as _json
 from collections import defaultdict
 from datetime import date as _date
@@ -127,6 +128,65 @@ class DashboardView(LoginRequiredMixin, ListView):
         ctx['review_still_needed'] = sum(
             r['still_needed'] for r in financial_rows if r['vacation'].status == Vacation.STATUS_REVIEW
         )
+
+        # Monthly contribution & balance projection
+        monthly_contribution = savings_obj.monthly_contribution
+        ctx['monthly_contribution'] = monthly_contribution
+        ctx['monthly_contribution_set'] = monthly_contribution is not None
+
+        if monthly_contribution is not None:
+            ctx['monthly_difference'] = monthly_contribution - total_monthly_needed
+
+            trip_events = {}
+            for v in booked + review:
+                if v.start_date:
+                    key = (v.start_date.year, v.start_date.month)
+                    cost = max(Decimal('0.00'), v.total_budget - v.total_actual)
+                    if key not in trip_events:
+                        trip_events[key] = {'names': [], 'cost': Decimal('0.00')}
+                    trip_events[key]['names'].append(v.name)
+                    trip_events[key]['cost'] += cost
+
+            trip_dates = [v.start_date for v in booked + review if v.start_date]
+            if trip_dates:
+                last_date = max(trip_dates)
+                end_year, end_month = last_date.year, last_date.month + 1
+                if end_month > 12:
+                    end_year, end_month = end_year + 1, 1
+
+                balance = float(saved_amount)
+                proj_labels, proj_balances, proj_trip_markers = [], [], []
+                cur_year, cur_month, idx = today.year, today.month, 0
+
+                while (cur_year, cur_month) <= (end_year, end_month):
+                    if idx > 0:
+                        balance += float(monthly_contribution)
+                    key = (cur_year, cur_month)
+                    if key in trip_events:
+                        balance -= float(trip_events[key]['cost'])
+                        proj_trip_markers.append({
+                            'index': idx,
+                            'names': trip_events[key]['names'],
+                            'cost': round(float(trip_events[key]['cost']), 2),
+                        })
+                    proj_labels.append(f"{_cal.month_abbr[cur_month]} {cur_year}")
+                    proj_balances.append(round(balance, 2))
+                    cur_month += 1
+                    if cur_month > 12:
+                        cur_year, cur_month = cur_year + 1, 1
+                    idx += 1
+
+                ctx['projection_json'] = _json.dumps({
+                    'labels': proj_labels,
+                    'balances': proj_balances,
+                    'trip_markers': proj_trip_markers,
+                })
+            else:
+                ctx['projection_json'] = None
+        else:
+            ctx['monthly_difference'] = None
+            ctx['projection_json'] = None
+
         return ctx
 
 
@@ -351,8 +411,16 @@ class UpdateSavingsView(LoginRequiredMixin, View):
             amount = Decimal(request.POST.get('amount', '0'))
         except InvalidOperation:
             amount = Decimal('0.00')
+        try:
+            monthly_raw = request.POST.get('monthly_contribution', '').strip()
+            monthly = Decimal(monthly_raw) if monthly_raw else None
+            if monthly is not None:
+                monthly = max(Decimal('0.00'), monthly)
+        except InvalidOperation:
+            monthly = None
         obj, _ = VacationSavings.objects.get_or_create(user=request.user)
         obj.amount = max(Decimal('0.00'), amount)
+        obj.monthly_contribution = monthly
         obj.save()
         return redirect(reverse('dashboard'))
 
