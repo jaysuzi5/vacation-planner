@@ -365,9 +365,6 @@
         <li class="d-flex align-items-center gap-2 mb-2">
           <i class="bi bi-person-heart text-info fs-5"></i>
           <span>{{ member.email }}</span>
-          {% for u, amt, monthly in family_savings_breakdown %}{% if u == member %}
-          <span class="text-muted small ms-1">· ${{ amt|floatformat:0 }} saved{% if monthly %}, ${{ monthly|floatformat:0 }}/mo{% endif %}</span>
-          {% endif %}{% endfor %}
           <form method="post" action="{% url 'family_settings' %}" class="ms-auto mb-0">
             {% csrf_token %}
             <input type="hidden" name="action" value="remove">
