@@ -188,31 +188,6 @@
   <div class="card mb-5">
     <div class="card-body">
 
-      <!-- Summary stats -->
-      <div class="row g-3 mb-4">
-        <div class="col-sm-4">
-          <div class="p-3 rounded-3 text-center" style="background:rgba(25,135,84,.08); border:1px solid rgba(25,135,84,.2);">
-            <div class="small text-muted mb-1">Currently Saved</div>
-            <div class="fs-3 fw-bold text-success">${{ savings_amount|floatformat:0 }}</div>
-            {% if savings_leftover > 0 %}
-            <div class="small text-success mt-1"><i class="bi bi-check-circle-fill me-1"></i>${{ savings_leftover|floatformat:0 }} beyond all trips</div>
-            {% endif %}
-          </div>
-        </div>
-        <div class="col-sm-4">
-          <div class="p-3 rounded-3 text-center" style="background:rgba(13,110,253,.08); border:1px solid rgba(13,110,253,.2);">
-            <div class="small text-muted mb-1">Booked — Still Needed</div>
-            <div class="fs-3 fw-bold text-primary">${{ booked_still_needed|floatformat:0 }}</div>
-          </div>
-        </div>
-        <div class="col-sm-4">
-          <div class="p-3 rounded-3 text-center" style="background:rgba(255,193,7,.08); border:1px solid rgba(255,193,7,.3);">
-            <div class="small text-muted mb-1">Planned — Budgeted</div>
-            <div class="fs-3 fw-bold" style="color:#997404;">${{ review_still_needed|floatformat:0 }}</div>
-          </div>
-        </div>
-      </div>
-
       <!-- Monthly target banner -->
       {% if financial_rows %}
         {% if total_monthly_needed %}
@@ -239,22 +214,31 @@
         </div>
         {% endif %}
 
-        <!-- Monthly contribution comparison -->
+        <!-- Stats row -->
         {% if monthly_contribution_set %}
         <div class="row g-3 mb-4">
-          <div class="col-sm-4">
+          <div class="col-sm-3">
+            <div class="p-3 rounded-3 text-center" style="background:rgba(25,135,84,.08); border:1px solid rgba(25,135,84,.2);">
+              <div class="small text-muted mb-1">Currently Saved</div>
+              <div class="fs-3 fw-bold text-success">${{ savings_amount|floatformat:0 }}</div>
+              {% if savings_leftover > 0 %}
+              <div class="small text-success mt-1"><i class="bi bi-check-circle-fill me-1"></i>${{ savings_leftover|floatformat:0 }} beyond all trips</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-sm-3">
             <div class="p-3 rounded-3 text-center bg-body-tertiary border">
               <div class="small text-muted mb-1">Saving per Month</div>
               <div class="fs-4 fw-bold">${{ monthly_contribution|floatformat:0 }}/mo</div>
             </div>
           </div>
-          <div class="col-sm-4">
+          <div class="col-sm-3">
             <div class="p-3 rounded-3 text-center bg-body-tertiary border">
               <div class="small text-muted mb-1">Needed per Month</div>
               <div class="fs-4 fw-bold">${{ total_monthly_needed|floatformat:0 }}/mo</div>
             </div>
           </div>
-          <div class="col-sm-4">
+          <div class="col-sm-3">
             {% if monthly_difference >= 0 %}
             <div class="p-3 rounded-3 text-center" style="background:rgba(25,135,84,.08); border:1px solid rgba(25,135,84,.2);">
               <div class="small text-muted mb-1">Difference</div>
@@ -266,6 +250,18 @@
               <div class="fs-4 fw-bold text-danger">-${{ monthly_difference|floatformat:0|slice:"1:" }}/mo</div>
             </div>
             {% endif %}
+          </div>
+        </div>
+        {% else %}
+        <div class="row g-3 mb-4">
+          <div class="col-sm-4">
+            <div class="p-3 rounded-3 text-center" style="background:rgba(25,135,84,.08); border:1px solid rgba(25,135,84,.2);">
+              <div class="small text-muted mb-1">Currently Saved</div>
+              <div class="fs-3 fw-bold text-success">${{ savings_amount|floatformat:0 }}</div>
+              {% if savings_leftover > 0 %}
+              <div class="small text-success mt-1"><i class="bi bi-check-circle-fill me-1"></i>${{ savings_leftover|floatformat:0 }} beyond all trips</div>
+              {% endif %}
+            </div>
           </div>
         </div>
         {% endif %}
