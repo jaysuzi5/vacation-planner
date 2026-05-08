@@ -84,7 +84,7 @@
         </thead>
         <tbody>
           {% for vacation in review_vacations %}
-          <tr>
+          <tr style="cursor:pointer;" onclick="location.href='{{ vacation.get_absolute_url }}'">
             <td class="text-muted small text-nowrap">
               {% if vacation.start_date %}{{ vacation.start_date|date:"Y-m-d" }}{% else %}<span class="fst-italic">TBD</span>{% endif %}
             </td>
@@ -136,7 +136,7 @@
         </thead>
         <tbody>
           {% for vacation in taken_vacations %}
-          <tr>
+          <tr style="cursor:pointer;" onclick="location.href='{{ vacation.get_absolute_url }}'">
             <td class="text-muted small text-nowrap">
               {% if vacation.start_date %}{{ vacation.start_date|date:"Y-m-d" }}{% endif %}
             </td>
