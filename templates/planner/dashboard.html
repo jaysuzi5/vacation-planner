@@ -29,11 +29,17 @@
             <span class="badge bg-primary ms-2 flex-shrink-0">Booked</span>
           </div>
           {% if vacation.start_date %}
-          <p class="text-muted small mb-3">
+          <p class="text-muted small mb-1">
             <i class="bi bi-calendar3 me-1"></i>{{ vacation.start_date|date:"l, F j, Y" }}
             {% if vacation.end_date %} &ndash; {{ vacation.end_date|date:"l, F j, Y" }}{% endif %}
-            {% if vacation.duration_days %}({{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }}){% endif %}
           </p>
+          {% if vacation.duration_days %}
+          <p class="text-muted small mb-3">
+            <i class="bi bi-clock me-1"></i><strong>Duration:</strong> {{ vacation.duration_days }} day{{ vacation.duration_days|pluralize }}
+          </p>
+          {% else %}
+          <div class="mb-3"></div>
+          {% endif %}
           {% endif %}
           <div class="budget-mini">
             <div class="d-flex justify-content-between small">
@@ -115,7 +121,7 @@
   <h4 class="mb-3"><span class="badge bg-success me-2">Taken</span>Past Trips</h4>
 
   {% if taken_vacations %}
-  <div class="card mb-4">
+  <div class="card mb-5">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
@@ -170,8 +176,148 @@
     </div>
   </div>
   {% else %}
-  <p class="text-muted fst-italic">No past trips yet.</p>
+  <p class="text-muted mb-4 fst-italic">No past trips yet.</p>
   {% endif %}
+
+  <!-- ── Financial Overview ─────────────────────────────────────────────── -->
+  <h4 class="mb-3"><i class="bi bi-piggy-bank-fill text-success me-2"></i>Financial Overview</h4>
+
+  <div class="card mb-5">
+    <div class="card-body">
+
+      <!-- Summary stats -->
+      <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+          <div class="p-3 rounded-3 text-center" style="background:rgba(25,135,84,.08); border:1px solid rgba(25,135,84,.2);">
+            <div class="small text-muted mb-1">Currently Saved</div>
+            <div class="fs-3 fw-bold text-success">${{ savings_amount|floatformat:0 }}</div>
+            {% if savings_leftover > 0 %}
+            <div class="small text-success mt-1"><i class="bi bi-check-circle-fill me-1"></i>${{ savings_leftover|floatformat:0 }} beyond all trips</div>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <div class="p-3 rounded-3 text-center" style="background:rgba(13,110,253,.08); border:1px solid rgba(13,110,253,.2);">
+            <div class="small text-muted mb-1">Booked — Still Needed</div>
+            <div class="fs-3 fw-bold text-primary">${{ booked_still_needed|floatformat:0 }}</div>
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <div class="p-3 rounded-3 text-center" style="background:rgba(255,193,7,.08); border:1px solid rgba(255,193,7,.3);">
+            <div class="small text-muted mb-1">Planned — Budgeted</div>
+            <div class="fs-3 fw-bold" style="color:#997404;">${{ review_still_needed|floatformat:0 }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monthly target banner -->
+      {% if financial_rows %}
+        {% if total_monthly_needed %}
+        <div class="d-flex align-items-center gap-3 p-3 rounded-3 mb-4" style="background:rgba(13,202,240,.08); border:1px solid rgba(13,202,240,.3);">
+          <i class="bi bi-calendar-month fs-4" style="color:#0dcaf0;"></i>
+          <div class="flex-grow-1">
+            <span class="fw-bold" style="color:#0dcaf0; font-size:1.1rem;">${{ total_monthly_needed|floatformat:0 }}/month</span>
+            <span class="text-muted ms-2">needed to fund all upcoming trips on time</span>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#savingsModal">
+            <i class="bi bi-pencil me-1"></i>Update Savings
+          </button>
+        </div>
+        {% else %}
+        <div class="d-flex align-items-center gap-3 p-3 rounded-3 mb-4" style="background:rgba(25,135,84,.08); border:1px solid rgba(25,135,84,.2);">
+          <i class="bi bi-check-circle-fill fs-4 text-success"></i>
+          <div class="flex-grow-1">
+            <span class="fw-bold text-success">All upcoming trips fully funded!</span>
+            <span class="text-muted ms-2">Your savings cover everything.</span>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary flex-shrink-0" data-bs-toggle="modal" data-bs-target="#savingsModal">
+            <i class="bi bi-pencil me-1"></i>Update Savings
+          </button>
+        </div>
+        {% endif %}
+
+        <!-- Per-trip coverage bars -->
+        <h6 class="fw-semibold mb-3">Savings Coverage by Trip</h6>
+        {% for row in financial_rows %}
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <div>
+              <span class="fw-medium">{{ row.vacation.name }}</span>
+              <span class="badge ms-2 small {% if row.vacation.status == 'booked' %}bg-primary{% else %}bg-warning text-dark{% endif %}">{{ row.vacation.get_status_display }}</span>
+              {% if row.vacation.start_date %}
+              <span class="text-muted small ms-1">· {{ row.vacation.start_date|date:"M Y" }}
+                {% if row.months_until is not None %}
+                  {% if row.months_until == 0 %}· this month{% else %}· {{ row.months_until }} mo away{% endif %}
+                {% endif %}
+              </span>
+              {% else %}
+              <span class="text-muted small ms-1">· date TBD</span>
+              {% endif %}
+            </div>
+            <div class="text-end small fw-semibold">
+              {% if row.still_needed and row.monthly_needed is not None %}<span class="text-primary">${{ row.monthly_needed|floatformat:0 }}/mo</span>
+              {% elif row.pct_covered >= 100 %}<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Funded</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="progress mb-1" style="height:24px; border-radius:6px;">
+            {% if row.pct_covered >= 100 %}
+            <div class="progress-bar bg-success w-100 fw-semibold">Fully Funded — ${{ row.covered|floatformat:0 }}</div>
+            {% else %}
+              {% if row.pct_covered > 0 %}
+              <div class="progress-bar bg-success" style="width:{{ row.pct_covered }}%;" title="Savings applied: ${{ row.covered|floatformat:0 }}">
+                {% if row.pct_covered > 15 %}<small>${{ row.covered|floatformat:0 }}</small>{% endif %}
+              </div>
+              {% endif %}
+              <div class="progress-bar" style="width:{{ row.pct_still }}%; background:rgba(13,110,253,0.55);" title="Still needed: ${{ row.still_needed|floatformat:0 }}">
+                {% if row.pct_still > 15 %}<small>${{ row.still_needed|floatformat:0 }}</small>{% endif %}
+              </div>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between" style="font-size:0.75rem; color:#6c757d;">
+            <span>{% if row.covered %}<span class="text-success">${{ row.covered|floatformat:0 }} from savings</span>{% else %}No savings applied yet{% endif %}</span>
+            <span>Budget: ${{ row.budget_needed|floatformat:0 }}</span>
+          </div>
+        </div>
+        {% endfor %}
+
+        <!-- Charts row -->
+        <div class="row mt-3 g-4">
+          <div class="col-lg-7">
+            <h6 class="fw-semibold mb-3">Funding Status per Trip</h6>
+            <canvas id="fundingStatusChart"></canvas>
+          </div>
+          <div class="col-lg-5">
+            <h6 class="fw-semibold mb-3">Monthly Savings by Trip</h6>
+            <canvas id="monthlySavingsChart"></canvas>
+          </div>
+        </div>
+
+      {% else %}
+      <p class="text-muted fst-italic">No upcoming trips yet.
+        <a href="{% url 'vacation_create' %}">Plan one!</a>
+      </p>
+      <div class="mt-3">
+        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#savingsModal">
+          <i class="bi bi-pencil me-1"></i>Update Savings
+        </button>
+      </div>
+      {% endif %}
+
+      <!-- Footer -->
+      <div class="mt-4 pt-3 border-top d-flex align-items-center gap-3 flex-wrap">
+        <span class="text-muted small">
+          <i class="bi bi-piggy-bank me-1"></i>Savings on record: <strong>${{ savings_amount|floatformat:2 }}</strong>
+        </span>
+        {% if not financial_rows %}
+        <button class="btn btn-sm btn-outline-primary ms-auto" data-bs-toggle="modal" data-bs-target="#savingsModal">
+          <i class="bi bi-pencil me-1"></i>Update Savings
+        </button>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
 
   {% if not booked_vacations and not review_vacations and not taken_vacations %}
   <div class="empty-state text-center py-5">
@@ -185,12 +331,40 @@
   {% endif %}
 
 </div>
+
+<!-- Savings Modal -->
+<div class="modal fade" id="savingsModal" tabindex="-1" aria-labelledby="savingsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="savingsModalLabel"><i class="bi bi-piggy-bank me-2"></i>Update Savings</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'savings_update' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <label class="form-label fw-medium">Amount currently saved for vacations</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" class="form-control" name="amount"
+                   value="{{ savings_amount|floatformat:2 }}" min="0" step="0.01"
+                   placeholder="0.00">
+          </div>
+          <div class="form-text">Enter the total amount you have set aside for upcoming trips. Savings are applied to your earliest trips first.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 // Background-cache every trip detail page linked from the dashboard.
-// Runs 2 s after load to avoid interfering with page render.
 if (navigator.onLine && 'caches' in window) {
   window.addEventListener('load', function () {
     setTimeout(function () {
@@ -213,4 +387,118 @@ if (navigator.onLine && 'caches' in window) {
   });
 }
 </script>
+
+{% if financial_rows %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+  const textColor = isDark ? '#dee2e6' : '#495057';
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+
+  const tripLabels = [{% for row in financial_rows %}'{{ row.vacation.name|escapejs }}',{% endfor %}];
+  const coveredData = [{% for row in financial_rows %}{{ row.covered|floatformat:2 }},{% endfor %}];
+  const neededData  = [{% for row in financial_rows %}{{ row.still_needed|floatformat:2 }},{% endfor %}];
+  const monthlyData = [{% for row in financial_rows %}{{ row.monthly_needed|default:"0"|floatformat:2 }},{% endfor %}];
+
+  // Funding status — horizontal stacked bar
+  const fundingCtx = document.getElementById('fundingStatusChart');
+  if (fundingCtx) {
+    new Chart(fundingCtx, {
+      type: 'bar',
+      data: {
+        labels: tripLabels,
+        datasets: [
+          {
+            label: 'Covered by Savings',
+            data: coveredData,
+            backgroundColor: 'rgba(25,135,84,0.75)',
+            borderRadius: 4,
+          },
+          {
+            label: 'Still Needed',
+            data: neededData,
+            backgroundColor: 'rgba(13,110,253,0.5)',
+            borderRadius: 4,
+          },
+        ],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+          legend: { labels: { color: textColor } },
+          tooltip: {
+            callbacks: { label: ctx => ' $' + Number(ctx.raw).toLocaleString() }
+          },
+        },
+        scales: {
+          x: {
+            stacked: true,
+            ticks: { color: textColor, callback: v => '$' + v.toLocaleString() },
+            grid: { color: gridColor },
+          },
+          y: {
+            stacked: true,
+            ticks: { color: textColor },
+            grid: { color: gridColor },
+          },
+        },
+      },
+    });
+  }
+
+  // Monthly savings breakdown — doughnut
+  const monthlyCtx = document.getElementById('monthlySavingsChart');
+  if (monthlyCtx) {
+    const palette = [
+      'rgba(13,110,253,0.8)',
+      'rgba(255,193,7,0.85)',
+      'rgba(25,135,84,0.8)',
+      'rgba(220,53,69,0.8)',
+      'rgba(111,66,193,0.8)',
+      'rgba(13,202,240,0.8)',
+    ];
+    const hasMonthly = monthlyData.some(v => parseFloat(v) > 0);
+    if (hasMonthly) {
+      new Chart(monthlyCtx, {
+        type: 'doughnut',
+        data: {
+          labels: tripLabels,
+          datasets: [{
+            data: monthlyData,
+            backgroundColor: palette.slice(0, tripLabels.length),
+            borderWidth: 2,
+          }],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: textColor, padding: 12 },
+            },
+            tooltip: {
+              callbacks: {
+                label: ctx => ' $' + Number(ctx.raw).toFixed(0) + '/month',
+              },
+            },
+          },
+        },
+      });
+    } else {
+      monthlyCtx.closest('.col-lg-5').innerHTML =
+        '<h6 class="fw-semibold mb-3">Monthly Savings by Trip</h6>' +
+        '<p class="text-success"><i class="bi bi-check-circle-fill me-1"></i>No monthly savings needed — all trips funded!</p>';
+    }
+  }
+
+  // Re-init charts if theme toggles
+  document.getElementById('theme-toggle')?.addEventListener('click', function () {
+    // Easiest approach: reload to rebuild charts with correct colors
+    setTimeout(() => location.reload(), 150);
+  });
+});
+</script>
+{% endif %}
 {% endblock %}

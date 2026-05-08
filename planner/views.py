@@ -1,15 +1,18 @@
 import json as _json
 from collections import defaultdict
+from datetime import date as _date
+from decimal import Decimal, InvalidOperation
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.db.models import F
 from django.http import JsonResponse
-from django.urls import reverse_lazy
+from django.shortcuts import redirect
+from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
 )
-from .models import Vacation, Day, Expense
+from .models import Vacation, Day, Expense, VacationSavings
 from .forms import VacationForm, DayForm, ExpenseForm
 
 
@@ -69,6 +72,61 @@ class DashboardView(LoginRequiredMixin, ListView):
         ctx['taken_total_variance'] = taken_budget - taken_actual
         ctx['taken_avg_budget'] = round(taken_budget / len(taken)) if taken else 0
         ctx['taken_avg_actual'] = round(taken_actual / len(taken)) if taken else 0
+
+        # Financial overview
+        today = _date.today()
+        savings_obj, _ = VacationSavings.objects.get_or_create(
+            user=user, defaults={'amount': Decimal('0.00')}
+        )
+        saved_amount = savings_obj.amount
+
+        upcoming = sorted(
+            booked + review,
+            key=lambda v: (v.start_date is None, v.start_date or _date.max)
+        )
+
+        savings_remaining = saved_amount
+        financial_rows = []
+        for v in upcoming:
+            budget_needed = max(Decimal('0.00'), v.total_budget - v.total_actual)
+            covered = min(savings_remaining, budget_needed)
+            savings_remaining = max(Decimal('0.00'), savings_remaining - covered)
+            still_needed = budget_needed - covered
+
+            if v.start_date:
+                months = (v.start_date.year - today.year) * 12 + (v.start_date.month - today.month)
+                months = max(0, months)
+                monthly = (still_needed / months).quantize(Decimal('0.01')) if months > 0 else still_needed
+            else:
+                months = None
+                monthly = None
+
+            pct_covered = int(covered / budget_needed * 100) if budget_needed > 0 else 100
+            financial_rows.append({
+                'vacation': v,
+                'budget_needed': budget_needed,
+                'covered': covered,
+                'still_needed': still_needed,
+                'months_until': months,
+                'monthly_needed': monthly,
+                'pct_covered': pct_covered,
+                'pct_still': 100 - pct_covered,
+            })
+
+        total_monthly_needed = sum(
+            r['monthly_needed'] for r in financial_rows if r['monthly_needed'] is not None
+        )
+
+        ctx['savings_amount'] = saved_amount
+        ctx['financial_rows'] = financial_rows
+        ctx['total_monthly_needed'] = total_monthly_needed
+        ctx['savings_leftover'] = savings_remaining
+        ctx['booked_still_needed'] = sum(
+            r['still_needed'] for r in financial_rows if r['vacation'].status == Vacation.STATUS_BOOKED
+        )
+        ctx['review_still_needed'] = sum(
+            r['still_needed'] for r in financial_rows if r['vacation'].status == Vacation.STATUS_REVIEW
+        )
         return ctx
 
 
@@ -283,6 +341,20 @@ class ExpenseDeleteView(LoginRequiredMixin, DeleteView):
         ctx['item_name'] = f'Expense — {self.object.description}'
         ctx['cancel_url'] = self.object.day.vacation.get_absolute_url()
         return ctx
+
+
+# ── Savings ───────────────────────────────────────────────────────────────────
+
+class UpdateSavingsView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        try:
+            amount = Decimal(request.POST.get('amount', '0'))
+        except InvalidOperation:
+            amount = Decimal('0.00')
+        obj, _ = VacationSavings.objects.get_or_create(user=request.user)
+        obj.amount = max(Decimal('0.00'), amount)
+        obj.save()
+        return redirect(reverse('dashboard'))
 
 
 # ── Offline / PWA API ─────────────────────────────────────────────────────────
