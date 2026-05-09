@@ -304,23 +304,26 @@ function showCategoryExpenses(label, key) {
 }
 </script>
 <script>
-// Background-cache the expense add forms for every day on this page.
+// Background-cache expense add forms and journal pages for every day on this page.
 if (navigator.onLine && 'caches' in window) {
   window.addEventListener('load', function () {
     setTimeout(function () {
       var seen = new Set();
-      document.querySelectorAll('a[href*="/expenses/add/"]').forEach(function (a) {
-        var path = a.getAttribute('href');
-        if (path && !seen.has(path)) {
-          seen.add(path);
-          fetch(path, { credentials: 'include' })
-            .then(function (res) {
-              if (res.ok) {
-                caches.open('vp-shell-v2').then(function (c) { c.put(path, res); });
-              }
-            })
-            .catch(function () {});
-        }
+      var selectors = ['a[href*="/expenses/add/"]', 'a[href*="/journal/"]'];
+      selectors.forEach(function (sel) {
+        document.querySelectorAll(sel).forEach(function (a) {
+          var path = a.getAttribute('href');
+          if (path && !seen.has(path)) {
+            seen.add(path);
+            fetch(path, { credentials: 'include' })
+              .then(function (res) {
+                if (res.ok) {
+                  caches.open('vp-shell-v2').then(function (c) { c.put(path, res); });
+                }
+              })
+              .catch(function () {});
+          }
+        });
       });
     }, 1500);
   });
