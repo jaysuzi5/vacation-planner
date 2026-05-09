@@ -295,17 +295,33 @@
             <div class="progress-bar bg-success w-100 fw-semibold">Fully Funded — ${{ row.covered|floatformat:0 }}</div>
             {% else %}
               {% if row.pct_covered > 0 %}
-              <div class="progress-bar bg-success" style="width:{{ row.pct_covered }}%;" title="Savings applied: ${{ row.covered|floatformat:0 }}">
+              <div class="progress-bar bg-success" style="width:{{ row.pct_covered }}%;" title="Current savings: ${{ row.covered|floatformat:0 }}">
                 {% if row.pct_covered > 15 %}<small>${{ row.covered|floatformat:0 }}</small>{% endif %}
               </div>
               {% endif %}
+              {% if row.pct_proj > 0 %}
+              <div class="progress-bar bg-primary" style="width:{{ row.pct_proj }}%;" title="Projected savings: ${{ row.proj_covered|floatformat:0 }}">
+                {% if row.pct_proj > 15 %}<small>${{ row.proj_covered|floatformat:0 }}</small>{% endif %}
+              </div>
+              {% endif %}
+              {% if row.pct_shortage > 0 %}
+              <div class="progress-bar bg-danger" style="width:{{ row.pct_shortage }}%;" title="Still short: ${{ row.shortage|floatformat:0 }}">
+                {% if row.pct_shortage > 15 %}<small>-${{ row.shortage|floatformat:0 }}</small>{% endif %}
+              </div>
+              {% elif row.pct_proj == 0 and row.pct_covered == 0 %}
               <div class="progress-bar" style="width:{{ row.pct_still }}%; background:rgba(13,110,253,0.55);" title="Still needed: ${{ row.still_needed|floatformat:0 }}">
                 {% if row.pct_still > 15 %}<small>${{ row.still_needed|floatformat:0 }}</small>{% endif %}
               </div>
+              {% endif %}
             {% endif %}
           </div>
           <div class="d-flex justify-content-between" style="font-size:0.75rem; color:#6c757d;">
-            <span>{% if row.covered %}<span class="text-success">${{ row.covered|floatformat:0 }} from savings</span>{% else %}No savings applied yet{% endif %}</span>
+            <div class="d-flex gap-3">
+              {% if row.covered %}<span class="text-success">${{ row.covered|floatformat:0 }} saved</span>{% endif %}
+              {% if row.proj_covered %}<span class="text-primary">${{ row.proj_covered|floatformat:0 }} projected</span>{% endif %}
+              {% if row.shortage %}<span class="text-danger">-${{ row.shortage|floatformat:0 }} short</span>{% endif %}
+              {% if not row.covered and not row.proj_covered %}<span>No savings applied yet</span>{% endif %}
+            </div>
             <span>Budget: ${{ row.budget_needed|floatformat:0 }}</span>
           </div>
         </div>

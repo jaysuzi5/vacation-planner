@@ -135,11 +135,24 @@ class DashboardView(LoginRequiredMixin, ListView):
                 'monthly_needed': monthly,
                 'pct_covered': pct_covered,
                 'pct_still': 100 - pct_covered,
+                # proj_covered/shortage/pct_proj/pct_shortage filled in below
+                'proj_covered': Decimal('0'),
+                'shortage': still_needed,
+                'pct_proj': 0,
+                'pct_shortage': 100 - pct_covered,
             })
 
-        total_monthly_needed = sum(
-            r['monthly_needed'] for r in financial_rows if r['monthly_needed'] is not None
-        )
+        # Correct formula: minimum monthly M so the running balance never goes negative.
+        # For each trip i (ordered by date): M >= max(0, (cumulative_cost_i - saved_amount) / months_i)
+        cumulative_needed = Decimal('0')
+        total_monthly_needed = Decimal('0')
+        for row in financial_rows:
+            if row['months_until'] is not None and row['months_until'] > 0:
+                cumulative_needed += row['budget_needed']
+                required = max(Decimal('0'), (cumulative_needed - saved_amount) / row['months_until'])
+                if required > total_monthly_needed:
+                    total_monthly_needed = required
+        total_monthly_needed = total_monthly_needed.quantize(Decimal('0.01'))
 
         ctx['savings_amount'] = saved_amount
         ctx['financial_rows'] = financial_rows
@@ -165,6 +178,31 @@ class DashboardView(LoginRequiredMixin, ListView):
 
         if monthly_contribution is not None:
             ctx['monthly_difference'] = monthly_contribution - total_monthly_needed
+
+            # Per-row three-way coverage: green (saved), blue (projected), red (shortage)
+            actual_pool_f = float(saved_amount)
+            proj_pool_f = float(saved_amount)
+            prev_mo = 0
+            for row in financial_rows:
+                budget_f = float(row['budget_needed'])
+                mo = row['months_until']
+                if mo is not None and mo > prev_mo:
+                    proj_pool_f += float(monthly_contribution) * (mo - prev_mo)
+                    prev_mo = mo
+                green_f = min(actual_pool_f, budget_f)
+                actual_pool_f = max(0.0, actual_pool_f - green_f)
+                proj_cover_f = min(proj_pool_f, budget_f)
+                blue_f = max(0.0, proj_cover_f - green_f)
+                red_f = max(0.0, budget_f - green_f - blue_f)
+                proj_pool_f = max(0.0, proj_pool_f - budget_f)
+                row['proj_covered'] = Decimal(str(round(blue_f, 2)))
+                row['shortage'] = Decimal(str(round(red_f, 2)))
+                if budget_f > 0:
+                    row['pct_proj'] = round(blue_f / budget_f * 100)
+                    row['pct_shortage'] = 100 - row['pct_covered'] - row['pct_proj']
+                else:
+                    row['pct_proj'] = 0
+                    row['pct_shortage'] = 0
 
             trip_events = {}
             for v in booked + review:
