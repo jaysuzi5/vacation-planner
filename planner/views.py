@@ -177,7 +177,11 @@ class DashboardView(LoginRequiredMixin, ListView):
         ctx['monthly_contribution_set'] = monthly_contribution is not None
 
         if monthly_contribution is not None:
-            ctx['monthly_difference'] = monthly_contribution - total_monthly_needed
+            diff = monthly_contribution - total_monthly_needed
+            diff_int = round(float(diff))
+            ctx['monthly_difference'] = diff
+            ctx['monthly_difference_int'] = diff_int
+            ctx['monthly_difference_abs'] = abs(diff_int)
 
             # Per-row three-way coverage: green (saved), blue (projected), red (shortage)
             actual_pool_f = float(saved_amount)
